@@ -124,8 +124,6 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
 
 		if (paramSplit[0].equalsIgnoreCase("pstat")) {
 			if (paramSplit.length < 2) return null;
-			//   0                1                  2           3
-			// pstat_<valid statistic option>_<player name>_<duration><valid time frame/unit>
 
 			final AuctionStatisticType auctionStatisticType = getStatTypeFromParam(paramSplit[1]);
 
@@ -137,7 +135,6 @@ public class PlaceholderAPIHook extends PlaceholderExpansion {
 				String timePattern = "";
 
 				// check if param has time at the end
-				System.out.println(paramSplit[paramSplit.length - 1]);
 				if (paramSplit[paramSplit.length - 1].matches("[1-9]+[smhdw]")) {
 					chronoSplit = splitString(paramSplit[paramSplit.length - 1]);
 					timePattern = "_" + paramSplit[paramSplit.length - 1];
