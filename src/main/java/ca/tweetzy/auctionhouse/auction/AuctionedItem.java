@@ -70,6 +70,7 @@ public class AuctionedItem {
 	private String listedWorld = null;
 	private boolean infinite = false;
 	private boolean allowPartialBuy = false;
+	private boolean serverItem = false;
 
 	public AuctionedItem() {
 	}
@@ -104,6 +105,7 @@ public class AuctionedItem {
 		this.isBidItem = isBidItem;
 		this.expired = expired;
 		this.expiresAt = expiresAt;
+		this.serverItem = false;
 	}
 
 	public ItemStack getBidStack() {
@@ -117,6 +119,8 @@ public class AuctionedItem {
 		if (meta != null && meta.getLore() != null)
 			lore.addAll(meta.getLore());
 
+		if (this.serverItem)
+			this.ownerName = AuctionHouse.getInstance().getLocale().getMessage("general.server listing").getMessage();
 
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_HEADER.getStringList()));
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_SELLER.getStringList().stream().map(s -> s.replace("%seller%", this.ownerName)).collect(Collectors.toList())));
@@ -154,6 +158,8 @@ public class AuctionedItem {
 		if (meta != null && meta.getLore() != null)
 			lore.addAll(meta.getLore());
 
+		if (this.serverItem)
+			this.ownerName = AuctionHouse.getInstance().getLocale().getMessage("general.server listing").getMessage();
 
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_HEADER.getStringList()));
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_SELLER.getStringList().stream().map(s -> s.replace("%seller%", this.ownerName)).collect(Collectors.toList())));
@@ -167,6 +173,11 @@ public class AuctionedItem {
 			if (!Settings.FORCE_CUSTOM_BID_AMOUNT.getBoolean()) {
 				lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_BID_INCREMENT.getStringList().stream().map(s -> s.replace("%bidincrement%", Settings.USE_SHORT_NUMBERS_ON_ITEMS.getBoolean() ? AuctionAPI.getInstance().getFriendlyNumber(this.bidIncrementPrice) : AuctionAPI.getInstance().formatNumber(this.bidIncrementPrice))).collect(Collectors.toList())));
 			}
+
+			if (Settings.FORCE_CUSTOM_BID_AMOUNT.getBoolean() && Settings.USE_REALISTIC_BIDDING.getBoolean()) {
+				lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_BID_INCREMENT.getStringList().stream().map(s -> s.replace("%bidincrement%", Settings.USE_SHORT_NUMBERS_ON_ITEMS.getBoolean() ? AuctionAPI.getInstance().getFriendlyNumber(this.bidIncrementPrice) : AuctionAPI.getInstance().formatNumber(this.bidIncrementPrice))).collect(Collectors.toList())));
+			}
+
 			lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_HIGHEST_BIDDER.getStringList().stream().map(s -> s.replace("%highestbidder%", this.highestBidder.equals(this.owner) ? AuctionHouse.getInstance().getLocale().getMessage("auction.nobids").getMessage() : this.highestBidderName)).collect(Collectors.toList())));
 		}
 
@@ -211,6 +222,7 @@ public class AuctionedItem {
 
 				} else {
 					lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_PURCHASE_CONTROLS_CANCEL_ITEM.getStringList()));
+
 					if (Settings.ALLOW_PLAYERS_TO_ACCEPT_BID.getBoolean() && this.bidStartingPrice >= 1 || this.bidIncrementPrice >= 1) {
 						if (!this.owner.equals(this.highestBidder)) {
 							lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_PURCHASE_CONTROLS_ACCEPT_BID.getStringList()));
@@ -225,5 +237,9 @@ public class AuctionedItem {
 		meta.setLore(lore);
 		itemStack.setItemMeta(meta);
 		return itemStack;
+	}
+
+	public boolean containsValidBid() {
+		return isBidItem() && !this.highestBidder.equals(this.owner);
 	}
 }

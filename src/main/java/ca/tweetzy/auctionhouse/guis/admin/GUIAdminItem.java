@@ -20,7 +20,7 @@ package ca.tweetzy.auctionhouse.guis.admin;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
-import ca.tweetzy.auctionhouse.api.events.AuctionAdminEvent;
+import ca.tweetzy.auctionhouse.events.AuctionAdminEvent;
 import ca.tweetzy.auctionhouse.auction.AuctionAdminLog;
 import ca.tweetzy.auctionhouse.auction.AuctionPayment;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
@@ -74,8 +74,10 @@ public class GUIAdminItem extends AbstractPlaceholderGui {
 				Bukkit.getServer().getPluginManager().callEvent(event);
 				if (event.isCancelled()) return;
 
-				this.auctionItem.setExpiresAt(System.currentTimeMillis());
-				this.auctionItem.setExpired(true);
+				if (!this.auctionItem.isServerItem()) {
+					this.auctionItem.setExpiresAt(System.currentTimeMillis());
+					this.auctionItem.setExpired(true);
+				}
 
 				if (Settings.BIDDING_TAKES_MONEY.getBoolean() && !this.auctionItem.getHighestBidder().equals(this.auctionItem.getOwner())) {
 					final OfflinePlayer oldBidder = Bukkit.getOfflinePlayer(this.auctionItem.getHighestBidder());
@@ -96,6 +98,7 @@ public class GUIAdminItem extends AbstractPlaceholderGui {
 
 				}
 
+//				AuctionHouse.getInstance().getAuctionItemManager().sendToGarbage(this.auctionItem);
 				e.gui.close();
 			});
 

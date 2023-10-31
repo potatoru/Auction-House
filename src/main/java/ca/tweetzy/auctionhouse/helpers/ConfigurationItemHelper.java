@@ -18,13 +18,13 @@
 
 package ca.tweetzy.auctionhouse.helpers;
 
-import ca.tweetzy.auctionhouse.api.hook.PlaceholderAPIHook;
+import ca.tweetzy.auctionhouse.hooks.PlaceholderAPIHook;
 import ca.tweetzy.core.compatibility.XMaterial;
 import ca.tweetzy.core.utils.NumberUtils;
 import ca.tweetzy.core.utils.TextUtils;
 import ca.tweetzy.flight.comp.enums.ServerVersion;
-import ca.tweetzy.flight.utils.QuickItem;
 import ca.tweetzy.flight.nbtapi.NBT;
+import ca.tweetzy.flight.utils.QuickItem;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;

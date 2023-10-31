@@ -39,10 +39,12 @@ import org.bukkit.OfflinePlayer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.Damageable;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.inventory.meta.SkullMeta;
 import org.bukkit.plugin.Plugin;
@@ -295,11 +297,20 @@ public class AuctionAPI {
 	public List<String> getItemEnchantments(ItemStack stack) {
 		final List<String> enchantments = new ArrayList<>();
 		Objects.requireNonNull(stack, "Item Stack cannot be null when getting enchantments");
-		if (!stack.getEnchantments().isEmpty()) {
-			stack.getEnchantments().forEach((k, i) -> {
-				enchantments.add(k.getName() + i);
-			});
+
+		// actual enchantment books
+		if (stack.getType() == XMaterial.ENCHANTED_BOOK.parseMaterial() && stack.getItemMeta() instanceof EnchantmentStorageMeta) {
+			final EnchantmentStorageMeta meta = (EnchantmentStorageMeta) stack.getItemMeta();
+			meta.getStoredEnchants().forEach((enchant, level) -> enchantments.add(enchantmentName(enchant.getName())));
+			return enchantments;
 		}
+
+		// normal enchantments on item
+		final ItemMeta meta = stack.getItemMeta();
+		if (meta != null && meta.hasEnchants()) {
+			meta.getEnchants().forEach((enchant, level) -> enchantments.add(enchantmentName(enchant.getName())));
+		}
+
 		return enchantments;
 	}
 
@@ -319,6 +330,21 @@ public class AuctionAPI {
 		Pattern patt = Pattern.compile("\\b" + Pattern.quote(ChatColor.stripColor(pattern)) + "\\b", Pattern.CASE_INSENSITIVE);
 		Matcher matcher = patt.matcher(sentence);
 		return matcher.find();
+	}
+
+	public boolean matchSearch(String pattern, String sentence) {
+		Pattern patt = Pattern.compile(ChatColor.stripColor(pattern), Pattern.CASE_INSENSITIVE);
+		Matcher matcher = patt.matcher(sentence);
+		return matcher.find();
+	}
+
+	public boolean matchSearch(String pattern, List<String> lines) {
+		for (String line : lines) {
+			if (matchSearch(pattern, line)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**
@@ -432,7 +458,7 @@ public class AuctionAPI {
 	}
 
 	public String getHeadTexture(final ItemStack item) {
-		final String textureBase64 = NBT.get(item, nbt -> nbt.getCompound("SkullOwner").getCompound("Properties").getCompoundList("textures").get(0).getString("Value"));
+		final String textureBase64 = NBT.get(item, nbt -> (String) nbt.getCompound("SkullOwner").getCompound("Properties").getCompoundList("textures").get(0).getString("Value"));
 		final String textureJson = new String(Base64.getDecoder().decode(textureBase64));
 		final JsonObject object = JsonParser.parseString(textureJson).getAsJsonObject();
 
@@ -586,7 +612,7 @@ public class AuctionAPI {
 	}
 
 	public boolean isRepaired(final ItemStack item) {
-		return NBT.get(item, nbt -> nbt.hasTag("AuctionHouseRepaired"));
+		return NBT.get(item, nbt -> (boolean) nbt.hasTag("AuctionHouseRepaired"));
 	}
 
 	public double calculateListingFee(double basePrice) {
@@ -703,10 +729,23 @@ public class AuctionAPI {
 
 	public void depositBalance(OfflinePlayer player, double amount, ItemStack item, OfflinePlayer paidFrom) {
 		if (Settings.STORE_PAYMENTS_FOR_MANUAL_COLLECTION.getBoolean()) {
+			if (Settings.MANUAL_PAYMENTS_ONLY_FOR_OFFLINE_USERS.getBoolean()) {
+				if (!player.isOnline()) {
+					AuctionHouse.getInstance().getDataManager().insertAuctionPayment(new AuctionPayment(player.getUniqueId(), amount, item, paidFrom.getName(), PaymentReason.ITEM_SOLD), null);
+				} else {
+					initiatePayment(player, amount);
+				}
+				return;
+			}
+
 			AuctionHouse.getInstance().getDataManager().insertAuctionPayment(new AuctionPayment(player.getUniqueId(), amount, item, paidFrom.getName(), PaymentReason.ITEM_SOLD), null);
 			return;
 		}
 
+		initiatePayment(player, amount);
+	}
+
+	private void initiatePayment(OfflinePlayer player, double amount) {
 		if (Settings.PAYMENT_HANDLE_USE_CMD.getBoolean()) {
 			AuctionHouse.newChain().sync(() -> {
 				Bukkit.dispatchCommand(Bukkit.getConsoleSender(), Settings.PAYMENT_HANDLE_DEPOSIT_CMD.getString().replace("%player%", player.getName()).replace("%price%", String.valueOf(amount)));
@@ -751,7 +790,7 @@ public class AuctionAPI {
 
 		// Check NBT tags
 		for (String nbtTag : Settings.BLOCKED_NBT_TAGS.getStringList()) {
-			if (NBT.get(itemStack, nbt -> nbt.hasTag(nbtTag))) {
+			if (NBT.get(itemStack, nbt -> (boolean) nbt.hasTag(nbtTag))) {
 				AuctionHouse.getInstance().getLocale().getMessage("general.blockednbttag").processPlaceholder("nbttag", nbtTag).sendPrefixedMessage(player);
 				return false;
 			}
@@ -780,5 +819,72 @@ public class AuctionAPI {
 		}
 
 		return meets;
+	}
+
+	private String enchantmentName(String arg) {
+		switch (Enchantment.getByName(arg).getName()) {
+			case "ARROW_DAMAGE":
+				return "Power";
+			case "ARROW_FIRE":
+				return "Flame";
+			case "ARROW_INFINITE":
+				return "Infinity";
+			case "ARROW_KNOCKBACK":
+				return "Punch";
+			case "BINDING_CURSE":
+				return "Curse of Binding";
+			case "DAMAGE_ALL":
+				return "Sharpness";
+			case "DAMAGE_ARTHROPODS":
+				return "Bane of Arthropods";
+			case "DAMAGE_UNDEAD":
+				return "Smite";
+			case "DEPTH_STRIDER":
+				return "Depth Strider";
+			case "DIG_SPEED":
+				return "Efficiency";
+			case "DURABILITY":
+				return "Unbreaking";
+			case "FIRE_ASPECT":
+				return "Fire Aspect";
+			case "FROST_WALKER":
+				return "Frost Walker";
+			case "KNOCKBACK":
+				return "Knockback";
+			case "LOOT_BONUS_BLOCKS":
+				return "Fortune";
+			case "LOOT_BONUS_MOBS":
+				return "Looting";
+			case "LUCK":
+				return "Luck of the Sea";
+			case "LURE":
+				return "Lure";
+			case "MENDING":
+				return "Mending";
+			case "OXYGEN":
+				return "Respiration";
+			case "PROTECTION_ENVIRONMENTAL":
+				return "Protection";
+			case "PROTECTION_EXPLOSIONS":
+				return "Blast Protection";
+			case "PROTECTION_FALL":
+				return "Feather Falling";
+			case "PROTECTION_FIRE":
+				return "Fire Protection";
+			case "PROTECTION_PROJECTILE":
+				return "Projectile Protection";
+			case "SILK_TOUCH":
+				return "Silk Touch";
+			case "SWEEPING_EDGE":
+				return "Sweeping Edge";
+			case "THORNS":
+				return "Thorns";
+			case "VANISHING_CURSE":
+				return "Cure of Vanishing";
+			case "WATER_WORKER":
+				return "Aqua Affinity";
+			default:
+				return "Unknown";
+		}
 	}
 }

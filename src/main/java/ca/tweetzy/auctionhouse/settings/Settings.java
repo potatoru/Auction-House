@@ -54,6 +54,7 @@ public class Settings {
 	 *  ===============================*/
 	public static final ConfigSetting SHOW_LISTING_ERROR_IN_CONSOLE = new ConfigSetting(config, "auction setting.show listing error in console", false, "If true, an exception will be thrown and shown in the console if something goes wrong during item listing");
 	public static final ConfigSetting STORE_PAYMENTS_FOR_MANUAL_COLLECTION = new ConfigSetting(config, "auction setting.store payments for manual collection", false, "If true, auction house will store the payments to be manually collected rather than automatically given to the player");
+	public static final ConfigSetting MANUAL_PAYMENTS_ONLY_FOR_OFFLINE_USERS = new ConfigSetting(config, "auction setting.use stored payments for offline only", false, "If true, the usage of the manual payment collection will only be done if the user is offline");
 	public static final ConfigSetting ALLOW_REPEAT_BIDS = new ConfigSetting(config, "auction setting.allow repeated bids", true, "If true, the highest bidder on an item can keep placing bids to raise their initial bid.");
 	public static final ConfigSetting COLLECTION_BIN_ITEM_LIMIT = new ConfigSetting(config, "auction setting.collection bin item limit", 45, "How many items can be stored in the collection bin. If this is reached the player cannot list anymore items, regardless of active listings");
 	public static final ConfigSetting SELL_MENU_SKIPS_TYPE_SELECTION = new ConfigSetting(config, "auction setting.skip type selection for sell menu", false, "If true the sell menu process will skip asking for the listing type depending on your auction settings (ie. bin only or auction only)");
@@ -159,6 +160,7 @@ public class Settings {
 	public static final ConfigSetting USE_FLAT_NUMBER_FORMAT = new ConfigSetting(config, "auction setting.use flat number format", false, "If true, $123,456.78 will become $12345678");
 	public static final ConfigSetting DATE_FORMAT = new ConfigSetting(config, "auction setting.date format", "MMM dd, yyyy hh:mm aa", "You can learn more about date formats by googling SimpleDateFormat patterns or visiting this link", "https://docs.oracle.com/javase/7/docs/api/java/text/SimpleDateFormat.html");
 	public static final ConfigSetting ALLOW_PLAYERS_TO_ACCEPT_BID = new ConfigSetting(config, "auction setting.allow players to accept bid", true, "If true, players can right click a biddable item inside their active listings menu to accept the current bid");
+	public static final ConfigSetting SELLERS_MUST_WAIT_FOR_TIME_LIMIT_AFTER_BID = new ConfigSetting(config, "auction setting.prevent cancellation of bid on items", false, "If true, players must wait out the duration of the auction listing if there is already a bid on it (makes them commit to selling it)");
 	public static final ConfigSetting PER_WORLD_ITEMS = new ConfigSetting(config, "auction setting.per world items", false, "If true, items can only be seen in the world they were listed in, same goes for bidding/buying/collecting");
 	public static final ConfigSetting ALLOW_PLAYERS_TO_DEFINE_AUCTION_TIME = new ConfigSetting(config, "auction setting.allow players to set auction time", false, "If true players can use -t 1 day for example to set the listing time for their item");
 	public static final ConfigSetting MAX_CUSTOM_DEFINED_TIME = new ConfigSetting(config, "auction setting.max custom defined time", 604800, "What should the limit on custom defined listing times be in seconds?");
@@ -182,6 +184,22 @@ public class Settings {
 	public static final ConfigSetting TAX_CHARGE_SALES_TAX_TO_BUYER = new ConfigSetting(config, "auction setting.tax.charge sale tax to buyer", false, "Should auction house tax the buyer instead of the seller?");
 	public static final ConfigSetting TAX_SALES_TAX_BUY_NOW_PERCENTAGE = new ConfigSetting(config, "auction setting.tax.buy now sales tax", 15.0, "Tax % that should be charged on items that are bought immediately");
 	public static final ConfigSetting TAX_SALES_TAX_AUCTION_WON_PERCENTAGE = new ConfigSetting(config, "auction setting.tax.auction won sales tax", 10.0, "Tax % that should be charged on items that are won through the auction");
+
+
+	public static final ConfigSetting FILTERS_ALL_ICON = new ConfigSetting(config, "auction setting.filter icons.all", "HOPPER");
+	public static final ConfigSetting FILTERS_FOOD_ICON = new ConfigSetting(config, "auction setting.filter icons.food", "APPLE");
+	public static final ConfigSetting FILTERS_ARMOR_ICON = new ConfigSetting(config, "auction setting.filter icons.armor", "DIAMOND_HELMET");
+	public static final ConfigSetting FILTERS_BLOCKS_ICON = new ConfigSetting(config, "auction setting.filter icons.blocks", "GRASS_BLOCK");
+	public static final ConfigSetting FILTERS_TOOLS_ICON = new ConfigSetting(config, "auction setting.filter icons.tools", "STONE_SHOVEL");
+	public static final ConfigSetting FILTERS_WEAPONS_ICON = new ConfigSetting(config, "auction setting.filter icons.weapons", "IRON_SWORD");
+	public static final ConfigSetting FILTERS_SPAWNERS_ICON = new ConfigSetting(config, "auction setting.filter icons.spawners", "SPAWNER");
+	public static final ConfigSetting FILTERS_ENCHANTS_ICON = new ConfigSetting(config, "auction setting.filter icons.enchants", "ENCHANTED_BOOK");
+	public static final ConfigSetting FILTERS_POTIONS_ICON = new ConfigSetting(config, "auction setting.filter icons.potions", "POTION");
+	public static final ConfigSetting FILTERS_MISC_ICON = new ConfigSetting(config, "auction setting.filter icons.misc", "OAK_SIGN");
+	public static final ConfigSetting FILTERS_SELF_ICON = new ConfigSetting(config, "auction setting.filter icons.self", "NAME_TAG");
+	public static final ConfigSetting FILTERS_SEARCH_ICON = new ConfigSetting(config, "auction setting.filter icons.search", "COMPASS");
+
+
 
 	public static final ConfigSetting ALL_FILTER_ENABLED = new ConfigSetting(config, "auction setting.enabled filters.all", true, "Should this filter be enabled?");
 	public static final ConfigSetting FOOD_FILTER_ENABLED = new ConfigSetting(config, "auction setting.enabled filters.food", true, "Should this filter be enabled?");
@@ -286,6 +304,18 @@ public class Settings {
 	);
 
 	public static final ConfigSetting CLICKS_FILTER_SORT_SALE_TYPE = new ConfigSetting(config, "auction setting.clicks.filter.sort sale type", "RIGHT",
+			"Valid Click Types",
+			"LEFT",
+			"RIGHT",
+			"SHIFT_LEFT",
+			"SHIFT_RIGHT",
+			"MIDDLE",
+			"DROP",
+			"",
+			"&cIf you overlap click types (ex. LEFT for both inspect and buy) things will go crazy."
+	);
+
+	public static final ConfigSetting CLICKS_FILTER_TRANSACTION_BUY_TYPE = new ConfigSetting(config, "auction setting.clicks.filter.transaction buy type", "SHIFT_LEFT",
 			"Valid Click Types",
 			"LEFT",
 			"RIGHT",
@@ -792,11 +822,13 @@ public class Settings {
 	public static final ConfigSetting GUI_TRANSACTIONS_ITEMS_FILTER_LORE = new ConfigSetting(config, "gui.transactions.items.filter.lore", Arrays.asList(
 			"&eItem Category&f: &7%filter_category%",
 			"&eAuction Type&f: &7%filter_auction_type%",
+			"&eTransaction Type&f: &7%filter_buy_type%",
 			"&eSort Order&f: &7%filter_sort_order%",
 			"",
 			"&7Left-Click to change item category",
 			"&7Right-Click to change change auction type",
 			"&7Shift Right-Click to change sort order",
+			"&7Shift Left-Click to change buy type",
 			"&7Press Drop to reset filters"
 	));
 
@@ -807,16 +839,14 @@ public class Settings {
 	public static final ConfigSetting GUI_TRANSACTION_VIEW_BACKGROUND_FILL = new ConfigSetting(config, "gui.transaction view.background.fill", true);
 	public static final ConfigSetting GUI_TRANSACTION_VIEW_BACKGROUND_ITEM = new ConfigSetting(config, "gui.transaction view.background.item", "BLACK_STAINED_GLASS_PANE");
 
-	public static final ConfigSetting GUI_TRANSACTION_VIEW_ITEM_SELLER_NAME = new ConfigSetting(config, "gui.transaction view.items.seller.name", "&e%seller_name%");
+	public static final ConfigSetting GUI_TRANSACTION_VIEW_ITEM_SELLER_NAME = new ConfigSetting(config, "gui.transaction view.items.seller.name", "&e%seller%");
 	public static final ConfigSetting GUI_TRANSACTION_VIEW_ITEM_SELLER_LORE = new ConfigSetting(config, "gui.transaction view.items.seller.lore", Arrays.asList(
-			"&7This is the player who sold the item.",
-			"&7ID&F: &e%seller_id%"
+			"&7This is the player who sold the item."
 	));
 
-	public static final ConfigSetting GUI_TRANSACTION_VIEW_ITEM_BUYER_NAME = new ConfigSetting(config, "gui.transaction view.items.buyer.name", "&e%buyer_name%");
+	public static final ConfigSetting GUI_TRANSACTION_VIEW_ITEM_BUYER_NAME = new ConfigSetting(config, "gui.transaction view.items.buyer.name", "&e%buyer%");
 	public static final ConfigSetting GUI_TRANSACTION_VIEW_ITEM_BUYER_LORE = new ConfigSetting(config, "gui.transaction view.items.buyer.lore", Arrays.asList(
-			"&7This is the player who bought the item.",
-			"&7ID&F: &e%buyer_id%"
+			"&7This is the player who bought the item."
 	));
 
 	public static final ConfigSetting GUI_TRANSACTION_VIEW_ITEM_INFO_ITEM = new ConfigSetting(config, "gui.transaction view.items.information.item", "PAPER");

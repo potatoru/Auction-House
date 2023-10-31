@@ -30,17 +30,16 @@ import ca.tweetzy.auctionhouse.helpers.ConfigurationItemHelper;
 import ca.tweetzy.auctionhouse.helpers.MaterialCategorizer;
 import ca.tweetzy.auctionhouse.settings.Settings;
 import ca.tweetzy.auctionhouse.transaction.Transaction;
+import ca.tweetzy.auctionhouse.transaction.TransactionViewFilter;
 import ca.tweetzy.core.compatibility.XSound;
 import ca.tweetzy.core.utils.TextUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.event.inventory.ClickType;
 import org.bukkit.inventory.ItemStack;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -55,7 +54,13 @@ public class GUITransactionList extends AbstractPlaceholderGui {
 	final AuctionPlayer auctionPlayer;
 	final Player player;
 	final boolean showAll;
+	private UUID searchUUID;
 
+
+	public GUITransactionList(Player player, UUID searchUUID) {
+		this(player, true);
+		this.searchUUID = searchUUID;
+	}
 
 	public GUITransactionList(Player player, boolean showAll) {
 		super(player);
@@ -80,6 +85,9 @@ public class GUITransactionList extends AbstractPlaceholderGui {
 		reset();
 
 		AuctionHouse.newChain().asyncFirst(() -> {
+			if (this.searchUUID != null)
+				this.transactions = this.transactions.stream().filter(transaction -> transaction.getSeller().equals(this.searchUUID) || transaction.getBuyer().equals(this.searchUUID)).collect(Collectors.toList());
+
 			// perform filter
 			if (this.auctionPlayer.getSelectedTransactionFilter() != AuctionItemCategory.ALL && this.auctionPlayer.getSelectedTransactionFilter() != AuctionItemCategory.SEARCH && this.auctionPlayer.getSelectedTransactionFilter() != AuctionItemCategory.SELF) {
 				this.transactions = this.transactions.stream().filter(item -> MaterialCategorizer.getMaterialCategory(item.getItem()) == this.auctionPlayer.getSelectedTransactionFilter()).collect(Collectors.toList());
@@ -91,6 +99,14 @@ public class GUITransactionList extends AbstractPlaceholderGui {
 
 			if (this.auctionPlayer.getSelectedTransactionSaleType() == AuctionSaleType.WITHOUT_BIDDING_SYSTEM) {
 				this.transactions = this.transactions.stream().filter(transaction -> transaction.getAuctionSaleType() == AuctionSaleType.WITHOUT_BIDDING_SYSTEM).collect(Collectors.toList());
+			}
+
+			if (this.auctionPlayer.getTransactionViewFilter() != TransactionViewFilter.ALL) {
+				if (this.auctionPlayer.getTransactionViewFilter() == TransactionViewFilter.BOUGHT)
+					this.transactions = this.transactions.stream().filter(transaction -> transaction.getBuyer().equals(this.player.getUniqueId())).collect(Collectors.toList());
+
+				if (this.auctionPlayer.getTransactionViewFilter() == TransactionViewFilter.SOLD)
+					this.transactions = this.transactions.stream().filter(transaction -> transaction.getSeller().equals(this.player.getUniqueId())).collect(Collectors.toList());
 			}
 
 			if (this.auctionPlayer.getTransactionSortType() == AuctionSortType.PRICE) {
@@ -111,12 +127,16 @@ public class GUITransactionList extends AbstractPlaceholderGui {
 			setOnPage(e -> draw());
 
 			int slot = 0;
+			final String SERVER_LISTING_NAME = AuctionHouse.getInstance().getLocale().getMessage("general.server listing").getMessage();
+
 
 			for (Transaction transaction : data) {
 				final ItemStack item = transaction.getItem().clone();
+				final OfflinePlayer seller = Bukkit.getOfflinePlayer(transaction.getSeller());
+
 				setButton(slot++, ConfigurationItemHelper.createConfigurationItem(this.player, item, Settings.GUI_TRANSACTIONS_ITEM_TRANSACTION_NAME.getString(), Settings.GUI_TRANSACTIONS_ITEM_TRANSACTION_LORE.getStringList(), new HashMap<String, Object>() {{
 					put("%transaction_id%", transaction.getId().toString());
-					put("%seller%", Bukkit.getOfflinePlayer(transaction.getSeller()).getName());
+					put("%seller%", seller.hasPlayedBefore() ? seller.getName() : SERVER_LISTING_NAME);
 					put("%buyer%", Bukkit.getOfflinePlayer(transaction.getBuyer()).getName());
 					put("%date%", AuctionAPI.getInstance().convertMillisToDate(transaction.getTransactionTime()));
 					put("%item_name%", AuctionAPI.getInstance().getItemName(item));
@@ -143,12 +163,13 @@ public class GUITransactionList extends AbstractPlaceholderGui {
 					put("%filter_category%", auctionPlayer.getSelectedTransactionFilter().getTranslatedType());
 					put("%filter_auction_type%", auctionPlayer.getSelectedTransactionSaleType().getTranslatedType());
 					put("%filter_sort_order%", auctionPlayer.getTransactionSortType().getTranslatedType());
+					put("%filter_buy_type%", auctionPlayer.getTransactionViewFilter().getTranslatedType());
 				}}
 		), click -> {
 
 			if (click.clickType == ClickType.valueOf(Settings.CLICKS_FILTER_CATEGORY.getString().toUpperCase())) {
 				this.auctionPlayer.setSelectedTransactionFilter(this.auctionPlayer.getSelectedTransactionFilter().next());
-				draw();
+				click.manager.showGUI(click.player, new GUITransactionList(click.player, this.showAll));
 			}
 
 
@@ -162,14 +183,20 @@ public class GUITransactionList extends AbstractPlaceholderGui {
 			if (click.clickType == ClickType.valueOf(Settings.CLICKS_FILTER_SORT_SALE_TYPE.getString().toUpperCase())) {
 				if (Settings.ALLOW_USAGE_OF_BID_SYSTEM.getBoolean()) {
 					this.auctionPlayer.setSelectedTransactionSaleType(this.auctionPlayer.getSelectedTransactionSaleType().next());
-					draw();
+					click.manager.showGUI(click.player, new GUITransactionList(click.player, this.showAll));
 				}
+				return;
+			}
+
+			if (click.clickType == ClickType.valueOf(Settings.CLICKS_FILTER_TRANSACTION_BUY_TYPE.getString().toUpperCase())) {
+				this.auctionPlayer.setTransactionViewFilter(this.auctionPlayer.getTransactionViewFilter().next());
+				click.manager.showGUI(click.player, new GUITransactionList(click.player, this.showAll));
 				return;
 			}
 
 			if (click.clickType == ClickType.valueOf(Settings.CLICKS_FILTER_SORT_PRICE_OR_RECENT.getString().toUpperCase())) {
 				this.auctionPlayer.setTransactionSortType(this.auctionPlayer.getTransactionSortType().next());
-				draw();
+				click.manager.showGUI(click.player, new GUITransactionList(click.player, this.showAll));
 			}
 		});
 	}

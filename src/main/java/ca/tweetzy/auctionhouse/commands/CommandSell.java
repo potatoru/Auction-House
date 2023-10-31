@@ -20,8 +20,8 @@ package ca.tweetzy.auctionhouse.commands;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
-import ca.tweetzy.auctionhouse.api.ListingResult;
-import ca.tweetzy.auctionhouse.api.ListingType;
+import ca.tweetzy.auctionhouse.api.auction.ListingResult;
+import ca.tweetzy.auctionhouse.auction.ListingType;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
 import ca.tweetzy.auctionhouse.auction.enums.AuctionSaleType;
@@ -145,6 +145,7 @@ public final class CommandSell extends AbstractCommand {
 		boolean isInfinite = false;
 		boolean isStackPrice = false;
 		boolean partialBuy = false;
+		boolean serverAuction = false;
 
 		List<String> timeSets = Arrays.asList(
 				"second",
@@ -186,6 +187,10 @@ public final class CommandSell extends AbstractCommand {
 
 			if ((args[i].equalsIgnoreCase("-i") || args[i].equalsIgnoreCase("-infinite")) && (player.hasPermission("auctionhouse.admin") || player.isOp()))
 				isInfinite = true;
+
+			// check if the listing should be a server auction
+			if (args[i].equalsIgnoreCase("-server") && (player.hasPermission("auctionhouse.admin") || player.isOp()))
+				serverAuction = true;
 
 			if (args[i].toLowerCase().startsWith("-t") && Settings.ALLOW_PLAYERS_TO_DEFINE_AUCTION_TIME.getBoolean()) {
 				if (i + 2 < args.length) {
@@ -317,6 +322,7 @@ public final class CommandSell extends AbstractCommand {
 		auctionedItem.setCategory(MaterialCategorizer.getMaterialCategory(itemToSell));
 		auctionedItem.setExpiresAt(System.currentTimeMillis() + 1000L * allowedTime);
 		auctionedItem.setBidItem(isBiddingItem);
+		auctionedItem.setServerItem(serverAuction);
 		auctionedItem.setExpired(false);
 
 		double theStartingPrice = buyNowAllow ? buyNowPrice : -1;
@@ -378,30 +384,30 @@ public final class CommandSell extends AbstractCommand {
 				}, Settings.INTERNAL_CREATE_DELAY.getInt());
 			}));
 		} else {
-			Bukkit.getScheduler().runTaskLaterAsynchronously(AuctionHouse.getInstance(), () -> {
-				if (auctionPlayer.getPlayer() == null || !auctionPlayer.getPlayer().isOnline()) {
+//			Bukkit.getScheduler().runTaskLaterAsynchronously(AuctionHouse.getInstance(), () -> {
+			if (auctionPlayer.getPlayer() == null || !auctionPlayer.getPlayer().isOnline()) {
+				return ReturnType.FAILURE;
+			}
+
+			player.getInventory().setItemInHand(XMaterial.AIR.parseItem());
+
+			AuctionCreator.create(auctionPlayer, auctionedItem, (auction, listingResult) -> {
+				AuctionHouse.getInstance().getAuctionPlayerManager().processSell(player);
+
+				if (listingResult != ListingResult.SUCCESS) {
+					PlayerUtils.giveItem(player, auction.getItem());
+					auctionPlayer.setItemBeingListed(null);
 					return;
 				}
 
-				player.getInventory().setItemInHand(XMaterial.AIR.parseItem());
+				if (Settings.OPEN_MAIN_AUCTION_HOUSE_AFTER_MENU_LIST.getBoolean()) {
+					player.removeMetadata("AuctionHouseConfirmListing", AuctionHouse.getInstance());
+					instance.getGuiManager().showGUI(player, new GUIAuctionHouse(auctionPlayer));
+				} else
+					AuctionHouse.newChain().sync(player::closeInventory).execute();
+			});
 
-				AuctionCreator.create(auctionPlayer, auctionedItem, (auction, listingResult) -> {
-					AuctionHouse.getInstance().getAuctionPlayerManager().processSell(player);
-
-					if (listingResult != ListingResult.SUCCESS) {
-						PlayerUtils.giveItem(player, auction.getItem());
-						auctionPlayer.setItemBeingListed(null);
-						return;
-					}
-
-					if (Settings.OPEN_MAIN_AUCTION_HOUSE_AFTER_MENU_LIST.getBoolean()) {
-						player.removeMetadata("AuctionHouseConfirmListing", AuctionHouse.getInstance());
-						instance.getGuiManager().showGUI(player, new GUIAuctionHouse(auctionPlayer));
-					} else
-						AuctionHouse.newChain().sync(player::closeInventory).execute();
-				});
-
-			}, Settings.INTERNAL_CREATE_DELAY.getInt());
+//			}, Settings.INTERNAL_CREATE_DELAY.getInt());
 
 		}
 

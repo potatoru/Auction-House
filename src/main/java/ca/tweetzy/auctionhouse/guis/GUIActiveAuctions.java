@@ -92,6 +92,11 @@ public class GUIActiveAuctions extends AbstractPlaceholderGui {
 				setButton(slot++, item.getDisplayStack(AuctionStackType.ACTIVE_AUCTIONS_LIST), e -> {
 					switch (e.clickType) {
 						case LEFT:
+							if (Settings.SELLERS_MUST_WAIT_FOR_TIME_LIMIT_AFTER_BID.getBoolean() && item.containsValidBid()) {
+								AuctionHouse.getInstance().getLocale().getMessage("general.cannot cancel item with bid").sendPrefixedMessage(e.player);
+								return;
+							}
+
 							if (((item.getBidStartingPrice() > 0 || item.getBidIncrementPrice() > 0) && Settings.ASK_FOR_CANCEL_CONFIRM_ON_BID_ITEMS.getBoolean()) || Settings.ASK_FOR_CANCEL_CONFIRM_ON_NON_BID_ITEMS.getBoolean()) {
 								if (item.getHighestBidder().equals(e.player.getUniqueId())) {
 									item.setExpired(true);
@@ -147,7 +152,13 @@ public class GUIActiveAuctions extends AbstractPlaceholderGui {
 		setButton(5, 4, getRefreshButtonItem(), e -> e.manager.showGUI(e.player, new GUIActiveAuctions(this.auctionPlayer)));
 
 		setButton(5, 1, ConfigurationItemHelper.createConfigurationItem(this.player, Settings.GUI_ACTIVE_AUCTIONS_ITEM.getString(), Settings.GUI_ACTIVE_AUCTIONS_NAME.getString(), Settings.GUI_ACTIVE_AUCTIONS_LORE.getStringList(), null), e -> {
-			this.auctionPlayer.getItems(false).forEach(item -> item.setExpired(true));
+			for (AuctionedItem item : this.auctionPlayer.getItems(false)) {
+				if (Settings.SELLERS_MUST_WAIT_FOR_TIME_LIMIT_AFTER_BID.getBoolean() && item.containsValidBid())
+					continue;
+
+				item.setExpired(true);
+			}
+
 			draw();
 		});
 	}

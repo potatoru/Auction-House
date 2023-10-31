@@ -20,10 +20,10 @@ package ca.tweetzy.auctionhouse.guis;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
-import ca.tweetzy.auctionhouse.api.ListingType;
-import ca.tweetzy.auctionhouse.api.events.AuctionBidEvent;
-import ca.tweetzy.auctionhouse.api.hook.FloodGateHook;
-import ca.tweetzy.auctionhouse.api.hook.PlaceholderAPIHook;
+import ca.tweetzy.auctionhouse.auction.ListingType;
+import ca.tweetzy.auctionhouse.events.AuctionBidEvent;
+import ca.tweetzy.auctionhouse.hooks.FloodGateHook;
+import ca.tweetzy.auctionhouse.hooks.PlaceholderAPIHook;
 import ca.tweetzy.auctionhouse.auction.AuctionPayment;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
@@ -113,9 +113,19 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 		this.searchPhrase = phrase;
 	}
 
+	private void partialReset() {
+		if (inventory != null)
+			inventory.clear();
+
+		setActionForRange(0, 44, null);
+		cellItems.clear();
+		update();
+	}
+
 	public void draw() {
 		try {
-			reset();
+			partialReset();
+			drawVariableButtons();// remove from here
 			drawFixedButtons();
 			drawItems();
 		} catch (Exception e) {
@@ -175,7 +185,7 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 			return this.items.stream().skip((page - 1) * 45L).limit(45L).collect(Collectors.toList());
 		}).asyncLast((data) -> {
 			pages = (int) Math.max(1, Math.ceil(this.items.size() / (double) 45L));
-			drawVariableButtons();
+			// todo possibly re-add variable btns draw
 			drawPaginationButtons();
 			placeItems(data);
 		}).execute();
@@ -196,12 +206,12 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 
 	private boolean checkSearchCriteria(String phrase, AuctionedItem item) {
 		ItemStack stack = item.getItem();
-		return AuctionAPI.getInstance().match(phrase, AuctionAPI.getInstance().getItemName(stack)) ||
-				AuctionAPI.getInstance().match(phrase, item.getCategory().getTranslatedType()) ||
-				AuctionAPI.getInstance().match(phrase, stack.getType().name()) ||
-				AuctionAPI.getInstance().match(phrase, Bukkit.getOfflinePlayer(item.getOwner()).getName()) ||
-				AuctionAPI.getInstance().match(phrase, AuctionAPI.getInstance().getItemLore(stack)) ||
-				AuctionAPI.getInstance().match(phrase, AuctionAPI.getInstance().getItemEnchantments(stack));
+		return AuctionAPI.getInstance().matchSearch(phrase, AuctionAPI.getInstance().getItemName(stack)) ||
+				AuctionAPI.getInstance().matchSearch(phrase, item.getCategory().getTranslatedType()) ||
+				AuctionAPI.getInstance().matchSearch(phrase, stack.getType().name()) ||
+				AuctionAPI.getInstance().matchSearch(phrase, Bukkit.getOfflinePlayer(item.getOwner()).getName()) ||
+				AuctionAPI.getInstance().matchSearch(phrase, AuctionAPI.getInstance().getItemLore(stack)) ||
+				AuctionAPI.getInstance().matchSearch(phrase, AuctionAPI.getInstance().getItemEnchantments(stack));
 	}
 
 	/*
@@ -296,7 +306,7 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 
 					double newBiddingAmount = 0;
 					if (Settings.USE_REALISTIC_BIDDING.getBoolean()) {
-						if (value > auctionItem.getCurrentPrice()) {
+						if (value > auctionItem.getCurrentPrice() + auctionItem.getBidIncrementPrice()) {
 							newBiddingAmount = value;
 						} else {
 							if (Settings.BID_MUST_BE_HIGHER_THAN_PREVIOUS.getBoolean()) {
@@ -689,16 +699,22 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 		}
 
 		if (Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_ENABLED.getBoolean()) {
-			setButton(Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_SLOT.getInt(), ConfigurationItemHelper.createConfigurationItem(this.player, Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_ITEM.getString(), Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_NAME.getString(), Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_LORE.getStringList(), new HashMap<String, Object>() {{
-				put("%filter_category%", auctionPlayer.getSelectedFilter().getTranslatedType());
-				put("%filter_auction_type%", auctionPlayer.getSelectedSaleType().getTranslatedType());
-				put("%filter_sort_order%", auctionPlayer.getAuctionSortType().getTranslatedType());
-			}}), e -> {
+			setButton(Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_SLOT.getInt(), ConfigurationItemHelper.createConfigurationItem(
+					this.player,
+					this.auctionPlayer.getSelectedFilter().getFilterIcon(),
+					Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_NAME.getString(),
+					Settings.GUI_AUCTION_HOUSE_ITEMS_FILTER_LORE.getStringList(),
+					new HashMap<String, Object>() {{
+						put("%filter_category%", auctionPlayer.getSelectedFilter().getTranslatedType());
+						put("%filter_auction_type%", auctionPlayer.getSelectedSaleType().getTranslatedType());
+						put("%filter_sort_order%", auctionPlayer.getAuctionSortType().getTranslatedType());
+					}}), e -> {
 
 				if (e.clickType == ClickType.valueOf(Settings.CLICKS_FILTER_CATEGORY.getString().toUpperCase())) {
 					this.auctionPlayer.setSelectedFilter(this.auctionPlayer.getSelectedFilter().next());
 					updatePlayerFilter(this.auctionPlayer);
 					draw();
+
 				}
 
 				if (e.clickType == ClickType.valueOf(Settings.CLICKS_FILTER_RESET.getString().toUpperCase())) {

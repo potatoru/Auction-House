@@ -19,7 +19,7 @@
 package ca.tweetzy.auctionhouse.listeners;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
-import ca.tweetzy.auctionhouse.api.UpdateChecker;
+import ca.tweetzy.auctionhouse.helpers.UpdateChecker;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
 import ca.tweetzy.auctionhouse.guis.GUIAuctionHouse;
 import ca.tweetzy.auctionhouse.helpers.BundleUtil;
@@ -191,7 +191,7 @@ public class PlayerListeners implements Listener {
 	@EventHandler
 	public void onInventoryClick(PrepareAnvilEvent event) {
 		ItemStack stack = event.getResult();
-		if (stack == null) return;
+		if (stack == null || stack.getType() == XMaterial.AIR.parseMaterial() || stack.getAmount() == 0) return;
 
 		NBT.modify(stack, nbt -> {
 			nbt.setBoolean("AuctionHouseRepaired", true);

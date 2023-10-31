@@ -18,13 +18,13 @@
 
 package ca.tweetzy.auctionhouse;
 
-import ca.tweetzy.auctionhouse.api.UpdateChecker;
-import ca.tweetzy.auctionhouse.api.hook.PlaceholderAPIHook;
-import ca.tweetzy.auctionhouse.api.hook.UltraEconomyHook;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
 import ca.tweetzy.auctionhouse.commands.*;
 import ca.tweetzy.auctionhouse.database.DataManager;
 import ca.tweetzy.auctionhouse.database.migrations.*;
+import ca.tweetzy.auctionhouse.helpers.UpdateChecker;
+import ca.tweetzy.auctionhouse.hooks.PlaceholderAPIHook;
+import ca.tweetzy.auctionhouse.hooks.UltraEconomyHook;
 import ca.tweetzy.auctionhouse.listeners.*;
 import ca.tweetzy.auctionhouse.managers.*;
 import ca.tweetzy.auctionhouse.settings.LocaleSettings;
@@ -70,6 +70,9 @@ import java.util.stream.Collectors;
 
 public class AuctionHouse extends TweetyPlugin {
 
+	//==========================================================================
+
+
 	private static TaskChainFactory taskChainFactory;
 	private static AuctionHouse instance;
 	private PluginHook ultraEconomyHook;
@@ -85,6 +88,7 @@ public class AuctionHouse extends TweetyPlugin {
 
 	@Getter
 	private CommandManager commandManager;
+
 
 	@Getter
 	private AuctionPlayerManager auctionPlayerManager;
@@ -154,6 +158,9 @@ public class AuctionHouse extends TweetyPlugin {
 
 		this.ultraEconomyHook = PluginHook.addHook(Economy.class, "UltraEconomy", UltraEconomyHook.class);
 
+		// v3 translations & Settings
+//		Translations.init();
+
 		// Load Economy
 		EconomyManager.load();
 
@@ -221,7 +228,8 @@ public class AuctionHouse extends TweetyPlugin {
 				new _15_AuctionPlayerMigration(),
 				new _16_StatisticVersionTwoMigration(),
 				new _17_PaymentsMigration(),
-				new _18_PaymentsItemMigration()
+				new _18_PaymentsItemMigration(),
+				new _19_ServerAuctionMigration()
 		);
 
 		dataMigrationManager.runMigrations();
