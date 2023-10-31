@@ -70,6 +70,7 @@ public class AuctionedItem {
 	private String listedWorld = null;
 	private boolean infinite = false;
 	private boolean allowPartialBuy = false;
+	private boolean serverItem = false;
 
 	public AuctionedItem() {
 	}
@@ -104,6 +105,7 @@ public class AuctionedItem {
 		this.isBidItem = isBidItem;
 		this.expired = expired;
 		this.expiresAt = expiresAt;
+		this.serverItem = false;
 	}
 
 	public ItemStack getBidStack() {
@@ -117,6 +119,8 @@ public class AuctionedItem {
 		if (meta != null && meta.getLore() != null)
 			lore.addAll(meta.getLore());
 
+		if (this.serverItem)
+			this.ownerName = AuctionHouse.getInstance().getLocale().getMessage("general.server listing").getMessage();
 
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_HEADER.getStringList()));
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_SELLER.getStringList().stream().map(s -> s.replace("%seller%", this.ownerName)).collect(Collectors.toList())));
@@ -154,6 +158,8 @@ public class AuctionedItem {
 		if (meta != null && meta.getLore() != null)
 			lore.addAll(meta.getLore());
 
+		if (this.serverItem)
+			this.ownerName = AuctionHouse.getInstance().getLocale().getMessage("general.server listing").getMessage();
 
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_HEADER.getStringList()));
 		lore.addAll(TextUtils.formatText(Settings.AUCTION_STACK_DETAILS_SELLER.getStringList().stream().map(s -> s.replace("%seller%", this.ownerName)).collect(Collectors.toList())));

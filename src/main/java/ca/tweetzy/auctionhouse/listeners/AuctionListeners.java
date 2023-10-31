@@ -19,15 +19,15 @@
 package ca.tweetzy.auctionhouse.listeners;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
-import ca.tweetzy.auctionhouse.api.events.AuctionAdminEvent;
-import ca.tweetzy.auctionhouse.api.events.AuctionBidEvent;
-import ca.tweetzy.auctionhouse.api.events.AuctionEndEvent;
-import ca.tweetzy.auctionhouse.api.events.AuctionStartEvent;
+import ca.tweetzy.auctionhouse.events.AuctionAdminEvent;
+import ca.tweetzy.auctionhouse.events.AuctionBidEvent;
+import ca.tweetzy.auctionhouse.events.AuctionEndEvent;
+import ca.tweetzy.auctionhouse.events.AuctionStartEvent;
 import ca.tweetzy.auctionhouse.auction.AuctionStatistic;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
 import ca.tweetzy.auctionhouse.auction.enums.AuctionSaleType;
 import ca.tweetzy.auctionhouse.auction.enums.AuctionStatisticType;
-import ca.tweetzy.auctionhouse.helpers.DiscordMessageCreator;
+import ca.tweetzy.auctionhouse.helpers.discord.DiscordMessageCreator;
 import ca.tweetzy.auctionhouse.settings.Settings;
 import ca.tweetzy.auctionhouse.transaction.Transaction;
 import org.bukkit.Bukkit;
@@ -51,7 +51,10 @@ public class AuctionListeners implements Listener {
 		// new stat system
 		final Player seller = e.getSeller();
 		final AuctionedItem auctionedItem = e.getAuctionItem();
-		new AuctionStatistic(seller.getUniqueId(), auctionedItem.isBidItem() ? AuctionStatisticType.CREATED_AUCTION : AuctionStatisticType.CREATED_BIN, 1).store(null);
+
+		// ignore if server item
+		if (!auctionedItem.isServerItem())
+			new AuctionStatistic(seller.getUniqueId(), auctionedItem.isBidItem() ? AuctionStatisticType.CREATED_AUCTION : AuctionStatisticType.CREATED_BIN, 1).store(null);
 
 		if (Settings.DISCORD_ENABLED.getBoolean()) {
 
@@ -85,8 +88,12 @@ public class AuctionListeners implements Listener {
 		final OfflinePlayer originalOwner = e.getOriginalOwner(), buyer = e.getBuyer();
 		final UUID originalOwnerUUID = originalOwner.getUniqueId(), buyerUUID = buyer.getUniqueId();
 		final AuctionedItem auctionedItem = e.getAuctionItem();
-		new AuctionStatistic(originalOwnerUUID, auctionedItem.isBidItem() ? AuctionStatisticType.SOLD_AUCTION : AuctionStatisticType.SOLD_BIN, 1).store(null);
-		new AuctionStatistic(originalOwnerUUID, AuctionStatisticType.MONEY_EARNED, e.getSaleType() == AuctionSaleType.USED_BIDDING_SYSTEM ? auctionedItem.getCurrentPrice() : auctionedItem.getBasePrice()).store(null);
+
+		if (!auctionedItem.isServerItem()) {
+			new AuctionStatistic(originalOwnerUUID, auctionedItem.isBidItem() ? AuctionStatisticType.SOLD_AUCTION : AuctionStatisticType.SOLD_BIN, 1).store(null);
+			new AuctionStatistic(originalOwnerUUID, AuctionStatisticType.MONEY_EARNED, e.getSaleType() == AuctionSaleType.USED_BIDDING_SYSTEM ? auctionedItem.getCurrentPrice() : auctionedItem.getBasePrice()).store(null);
+		}
+
 		new AuctionStatistic(buyerUUID, AuctionStatisticType.MONEY_SPENT, e.getSaleType() == AuctionSaleType.USED_BIDDING_SYSTEM ? auctionedItem.getCurrentPrice() : auctionedItem.getBasePrice()).store(null);
 
 		AuctionHouse.newChain().async(() -> {

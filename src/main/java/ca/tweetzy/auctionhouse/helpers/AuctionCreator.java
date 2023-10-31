@@ -20,9 +20,9 @@ package ca.tweetzy.auctionhouse.helpers;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
-import ca.tweetzy.auctionhouse.api.ListingResult;
-import ca.tweetzy.auctionhouse.api.events.AuctionStartEvent;
-import ca.tweetzy.auctionhouse.api.hook.McMMOHook;
+import ca.tweetzy.auctionhouse.api.auction.ListingResult;
+import ca.tweetzy.auctionhouse.events.AuctionStartEvent;
+import ca.tweetzy.auctionhouse.hooks.McMMOHook;
 import ca.tweetzy.auctionhouse.auction.AuctionPayment;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
@@ -38,44 +38,56 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 
-import static ca.tweetzy.auctionhouse.api.ListingResult.*;
+import static ca.tweetzy.auctionhouse.api.auction.ListingResult.*;
 
 
 @UtilityClass
 public final class AuctionCreator {
 
-	public void create(@NonNull final AuctionPlayer auctionPlayer, @NonNull final AuctionedItem auctionItem, @NonNull final BiConsumer<AuctionedItem, ListingResult> result) {
+	public static final UUID SERVER_AUCTION_UUID = UUID.fromString("00000000-0000-0000-0000-000000000000");
+	public static final String SERVER_LISTING_NAME = AuctionHouse.getInstance().getLocale().getMessage("general.server listing").getMessage();
+
+
+	public void create(final AuctionPlayer auctionPlayer, @NonNull final AuctionedItem auctionItem, @NonNull final BiConsumer<AuctionedItem, ListingResult> result) {
 		final AtomicReference<ListingResult> status = new AtomicReference<>(SUCCESS);
+		if (!auctionItem.isServerItem() && auctionPlayer == null) {
+			throw new RuntimeException("Cannot create listing if AuctionPlayer is null, did you mean to create a server listing?");
+		}
 
 		final AuctionHouse instance = AuctionHouse.getInstance();
-		final Player seller = auctionPlayer.getPlayer();
+		final Player seller = auctionPlayer == null ? null : auctionPlayer.getPlayer();
 
 		// Check if player is even valid?!?
-		if (seller == null) {
-			result.accept(auctionItem, PLAYER_INSTANCE_NOT_FOUND);
-			return;
-		}
 
-		// Hooks & Special Cases
-		if (McMMOHook.isUsingAbility(seller)) {
-			instance.getLocale().getMessage("general.mcmmo_ability_active").sendPrefixedMessage(seller);
-			result.accept(auctionItem, CANNOT_LIST_WITH_MCMMO_ABILITY_ACTIVE);
-			return;
-		}
+		// only check if not a server item
+		if (!auctionItem.isServerItem()) {
+			if (seller == null) {
+				result.accept(auctionItem, PLAYER_INSTANCE_NOT_FOUND);
+				return;
+			}
 
-		if (!Settings.ALLOW_SALE_OF_DAMAGED_ITEMS.getBoolean() && AuctionAPI.getInstance().isDamaged(auctionItem.getItem())) {
-			instance.getLocale().getMessage("general.cannot list damaged item").sendPrefixedMessage(seller);
-			result.accept(auctionItem, CANNOT_SELL_DAMAGED_ITEM);
-			return;
-		}
+			// Hooks & Special Cases
+			if (McMMOHook.isUsingAbility(seller)) {
+				instance.getLocale().getMessage("general.mcmmo_ability_active").sendPrefixedMessage(seller);
+				result.accept(auctionItem, CANNOT_LIST_WITH_MCMMO_ABILITY_ACTIVE);
+				return;
+			}
 
-		if (Settings.PREVENT_SALE_OF_REPAIRED_ITEMS.getBoolean() && AuctionAPI.getInstance().isRepaired(auctionItem.getItem())) {
-			instance.getLocale().getMessage("general.cannot list repaired item").sendPrefixedMessage(seller);
-			result.accept(auctionItem, CANNOT_SELL_REPAIRED_ITEM);
-			return;
+			if (!Settings.ALLOW_SALE_OF_DAMAGED_ITEMS.getBoolean() && AuctionAPI.getInstance().isDamaged(auctionItem.getItem())) {
+				instance.getLocale().getMessage("general.cannot list damaged item").sendPrefixedMessage(seller);
+				result.accept(auctionItem, CANNOT_SELL_DAMAGED_ITEM);
+				return;
+			}
+
+			if (Settings.PREVENT_SALE_OF_REPAIRED_ITEMS.getBoolean() && AuctionAPI.getInstance().isRepaired(auctionItem.getItem())) {
+				instance.getLocale().getMessage("general.cannot list repaired item").sendPrefixedMessage(seller);
+				result.accept(auctionItem, CANNOT_SELL_REPAIRED_ITEM);
+				return;
+			}
 		}
 
 		if (!AuctionAPI.getInstance().meetsMinItemPrice(BundleUtil.isBundledItem(auctionItem.getItem()), auctionItem.isBidItem(), auctionItem.getItem(), auctionItem.getBasePrice(), auctionItem.getBidStartingPrice())) {
@@ -99,7 +111,7 @@ public final class AuctionCreator {
 		final double listingFee = Settings.TAX_ENABLED.getBoolean() && Settings.TAX_CHARGE_LISTING_FEE.getBoolean() ? AuctionAPI.getInstance().calculateListingFee(originalBasePrice) : 0;
 
 		// check tax
-		if (Settings.TAX_ENABLED.getBoolean() && Settings.TAX_CHARGE_LISTING_FEE.getBoolean()) {
+		if (Settings.TAX_ENABLED.getBoolean() && Settings.TAX_CHARGE_LISTING_FEE.getBoolean() && !auctionItem.isServerItem()) {
 			if (!EconomyManager.hasBalance(seller, listingFee)) {
 				instance.getLocale().getMessage("auction.tax.cannotpaylistingfee").processPlaceholder("price", AuctionAPI.getInstance().formatNumber(listingFee)).sendPrefixedMessage(seller);
 				result.accept(auctionItem, CANNOT_PAY_LISTING_FEE);
@@ -112,8 +124,9 @@ public final class AuctionCreator {
 		}
 
 		// final item adjustments
-		if (auctionItem.getListedWorld() == null)
+		if (auctionItem.getListedWorld() == null && seller != null)
 			auctionItem.setListedWorld(seller.getWorld().getName());
+
 
 		AuctionStartEvent startEvent = new AuctionStartEvent(seller, auctionItem, listingFee);
 
@@ -127,11 +140,24 @@ public final class AuctionCreator {
 			return;
 		}
 
+		// overwrite to be random uuid since it's a server auction
+
+		if (auctionItem.isServerItem()) {
+			auctionItem.setOwner(SERVER_AUCTION_UUID);
+			auctionItem.setOwnerName(SERVER_LISTING_NAME);
+
+			auctionItem.setHighestBidder(SERVER_AUCTION_UUID);
+			auctionItem.setHighestBidderName(SERVER_LISTING_NAME);
+		}
+
 		//====================================================================================
 
 		// A VERY UGLY LISTING MESSAGING THING, IDEK, I GOTTA DEAL WITH THIS EVENTUALLY 💀
 
-		SoundManager.getInstance().playSound(seller, Settings.SOUNDS_LISTED_ITEM_ON_AUCTION_HOUSE.getString());
+		if (seller != null)
+			SoundManager.getInstance().playSound(seller, Settings.SOUNDS_LISTED_ITEM_ON_AUCTION_HOUSE.getString());
+
+
 		String NAX = AuctionHouse.getInstance().getLocale().getMessage("auction.biditemwithdisabledbuynow").getMessage();
 		String msg = AuctionHouse.getInstance().getLocale().getMessage(auctionItem.isBidItem() ? "auction.listed.withbid" : "auction.listed.nobid")
 				.processPlaceholder("amount", finalItemToSell.getAmount())
@@ -140,39 +166,45 @@ public final class AuctionCreator {
 				.processPlaceholder("start_price", AuctionAPI.getInstance().formatNumber(auctionItem.getBidStartingPrice()))
 				.processPlaceholder("increment_price", AuctionAPI.getInstance().formatNumber(auctionItem.getBidIncrementPrice())).getMessage();
 
-		if (AuctionHouse.getInstance().getAuctionPlayerManager().getPlayer(seller.getUniqueId()) == null) {
-			AuctionHouse.getInstance().getLocale().newMessage(TextUtils.formatText("&cCould not find auction player instance for&f: &e" + seller.getName() + "&c creating one now.")).sendPrefixedMessage(Bukkit.getConsoleSender());
-			AuctionHouse.getInstance().getAuctionPlayerManager().addPlayer(new AuctionPlayer(seller));
-		}
+		if (seller != null && !auctionItem.isServerItem()) {
+			if (AuctionHouse.getInstance().getAuctionPlayerManager().getPlayer(seller.getUniqueId()) == null) {
+				AuctionHouse.getInstance().getLocale().newMessage(TextUtils.formatText("&cCould not find auction player instance for&f: &e" + seller.getName() + "&c creating one now.")).sendPrefixedMessage(Bukkit.getConsoleSender());
+				AuctionHouse.getInstance().getAuctionPlayerManager().addPlayer(new AuctionPlayer(seller));
+			}
 
-		if (AuctionHouse.getInstance().getAuctionPlayerManager().getPlayer(seller.getUniqueId()).isShowListingInfo()) {
-			AuctionHouse.getInstance().getLocale().newMessage(msg).sendPrefixedMessage(seller);
+			if (AuctionHouse.getInstance().getAuctionPlayerManager().getPlayer(seller.getUniqueId()).isShowListingInfo()) {
+				AuctionHouse.getInstance().getLocale().newMessage(msg).sendPrefixedMessage(seller);
+			}
 		}
 
 		//====================================================================================
 
 		// Actually attempt the insertion now
 		AuctionHouse.getInstance().getDataManager().insertAuctionAsync(auctionItem, (error, inserted) -> {
-			auctionPlayer.setItemBeingListed(null);
+			if (auctionPlayer != null)
+				auctionPlayer.setItemBeingListed(null);
 
 			if (error != null) {
 				if (Settings.SHOW_LISTING_ERROR_IN_CONSOLE.getBoolean())
 					error.printStackTrace();
 
-				instance.getLocale().getMessage("general.something_went_wrong_while_listing").sendPrefixedMessage(seller);
-				ItemStack originalCopy = auctionItem.getItem().clone();
-				int totalOriginal = BundleUtil.isBundledItem(originalCopy) ? AuctionAPI.getInstance().getItemCountInPlayerInventory(seller, originalCopy) : originalCopy.getAmount();
+				if (seller != null) {
+					instance.getLocale().getMessage("general.something_went_wrong_while_listing").sendPrefixedMessage(seller);
 
-				if (BundleUtil.isBundledItem(originalCopy)) {
-					originalCopy.setAmount(1);
-					for (int i = 0; i < totalOriginal; i++) PlayerUtils.giveItem(seller, originalCopy);
-				} else {
-					originalCopy.setAmount(totalOriginal);
-					PlayerUtils.giveItem(seller, originalCopy);
+					ItemStack originalCopy = auctionItem.getItem().clone();
+					int totalOriginal = BundleUtil.isBundledItem(originalCopy) ? AuctionAPI.getInstance().getItemCountInPlayerInventory(seller, originalCopy) : originalCopy.getAmount();
+
+					if (BundleUtil.isBundledItem(originalCopy)) {
+						originalCopy.setAmount(1);
+						for (int i = 0; i < totalOriginal; i++) PlayerUtils.giveItem(seller, originalCopy);
+					} else {
+						originalCopy.setAmount(totalOriginal);
+						PlayerUtils.giveItem(seller, originalCopy);
+					}
 				}
 
 				// If the item could not be added for whatever reason and the tax listing fee is enabled, refund them
-				if (Settings.TAX_ENABLED.getBoolean() && Settings.TAX_CHARGE_LISTING_FEE.getBoolean()) {
+				if (Settings.TAX_ENABLED.getBoolean() && Settings.TAX_CHARGE_LISTING_FEE.getBoolean() && !auctionItem.isServerItem() && seller != null) {
 					if (Settings.STORE_PAYMENTS_FOR_MANUAL_COLLECTION.getBoolean())
 						AuctionHouse.getInstance().getDataManager().insertAuctionPayment(new AuctionPayment(
 								seller.getUniqueId(),
@@ -195,20 +227,21 @@ public final class AuctionCreator {
 			//====================================================================================
 			// ANOTHER VERY SHIT BROADCAST THAT IS IN FACT BROKEN
 			if (Settings.BROADCAST_AUCTION_LIST.getBoolean()) {
+
 				final String prefix = AuctionHouse.getInstance().getLocale().getMessage("general.prefix").getMessage();
 
-				String msgToAll = AuctionHouse.getInstance().getLocale().getMessage(auctionItem.isBidItem() ? "auction.broadcast.withbid" : "auction.broadcast.nobid")
+				String msgToAll = AuctionHouse.getInstance().getLocale().getMessage(auctionItem.isServerItem() ? "auction.broadcast.serverlisting" : auctionItem.isBidItem() ? "auction.broadcast.withbid" : "auction.broadcast.nobid")
 						.processPlaceholder("amount", finalItemToSell.getAmount())
-						.processPlaceholder("player", seller.getName())
-						.processPlaceholder("player_displayname", AuctionAPI.getInstance().getDisplayName(seller))
+						.processPlaceholder("player", auctionItem.isServerItem() ? SERVER_LISTING_NAME : seller.getName())
+						.processPlaceholder("player_displayname", auctionItem.isServerItem() ? SERVER_LISTING_NAME : AuctionAPI.getInstance().getDisplayName(seller))
 						.processPlaceholder("item", AuctionAPI.getInstance().getItemName(finalItemToSell))
 						.processPlaceholder("base_price", auctionItem.getBasePrice() <= -1 ? NAX : AuctionAPI.getInstance().formatNumber(auctionItem.getBasePrice()))
 						.processPlaceholder("start_price", AuctionAPI.getInstance().formatNumber(auctionItem.getBidStartingPrice()))
 						.processPlaceholder("increment_price", AuctionAPI.getInstance().formatNumber(auctionItem.getBidIncrementPrice())).getMessage();
 
 				Bukkit.getOnlinePlayers().forEach(p -> {
-					if (!p.getUniqueId().equals(seller.getUniqueId()))
-						p.sendMessage(TextUtils.formatText((prefix.length() == 0 ? "" : prefix + " ") + msgToAll));
+					if (seller != null && p.getUniqueId().equals(seller.getUniqueId())) return;
+					p.sendMessage(TextUtils.formatText((prefix.length() == 0 ? "" : prefix + " ") + msgToAll));
 				});
 			}
 			//====================================================================================

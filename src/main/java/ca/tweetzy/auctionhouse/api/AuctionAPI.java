@@ -463,7 +463,7 @@ public class AuctionAPI {
 	}
 
 	public String getHeadTexture(final ItemStack item) {
-		final String textureBase64 = NBT.get(item, nbt -> nbt.getCompound("SkullOwner").getCompound("Properties").getCompoundList("textures").get(0).getString("Value"));
+		final String textureBase64 = NBT.get(item, nbt -> (String) nbt.getCompound("SkullOwner").getCompound("Properties").getCompoundList("textures").get(0).getString("Value"));
 		final String textureJson = new String(Base64.getDecoder().decode(textureBase64));
 		final JsonObject object = JsonParser.parseString(textureJson).getAsJsonObject();
 
@@ -617,7 +617,7 @@ public class AuctionAPI {
 	}
 
 	public boolean isRepaired(final ItemStack item) {
-		return NBT.get(item, nbt -> nbt.hasTag("AuctionHouseRepaired"));
+		return NBT.get(item, nbt -> (boolean) nbt.hasTag("AuctionHouseRepaired"));
 	}
 
 	public double calculateListingFee(double basePrice) {
@@ -734,10 +734,23 @@ public class AuctionAPI {
 
 	public void depositBalance(OfflinePlayer player, double amount, ItemStack item, OfflinePlayer paidFrom) {
 		if (Settings.STORE_PAYMENTS_FOR_MANUAL_COLLECTION.getBoolean()) {
+			if (Settings.MANUAL_PAYMENTS_ONLY_FOR_OFFLINE_USERS.getBoolean()) {
+				if (!player.isOnline()) {
+					AuctionHouse.getInstance().getDataManager().insertAuctionPayment(new AuctionPayment(player.getUniqueId(), amount, item, paidFrom.getName(), PaymentReason.ITEM_SOLD), null);
+				} else {
+					initiatePayment(player, amount);
+				}
+				return;
+			}
+
 			AuctionHouse.getInstance().getDataManager().insertAuctionPayment(new AuctionPayment(player.getUniqueId(), amount, item, paidFrom.getName(), PaymentReason.ITEM_SOLD), null);
 			return;
 		}
 
+		initiatePayment(player, amount);
+	}
+
+	private void initiatePayment(OfflinePlayer player, double amount) {
 		if (Settings.PAYMENT_HANDLE_USE_CMD.getBoolean()) {
 			AuctionHouse.newChain().sync(() -> {
 				Bukkit.dispatchCommand(Bukkit.getConsoleSender(), Settings.PAYMENT_HANDLE_DEPOSIT_CMD.getString().replace("%player%", player.getName()).replace("%price%", String.valueOf(amount)));
@@ -782,7 +795,7 @@ public class AuctionAPI {
 
 		// Check NBT tags
 		for (String nbtTag : Settings.BLOCKED_NBT_TAGS.getStringList()) {
-			if (NBT.get(itemStack, nbt -> nbt.hasTag(nbtTag))) {
+			if (NBT.get(itemStack, nbt -> (boolean) nbt.hasTag(nbtTag))) {
 				AuctionHouse.getInstance().getLocale().getMessage("general.blockednbttag").processPlaceholder("nbttag", nbtTag).sendPrefixedMessage(player);
 				return false;
 			}
