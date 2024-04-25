@@ -21,9 +21,9 @@ package ca.tweetzy.auctionhouse.commands;
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
 import ca.tweetzy.auctionhouse.api.auction.ListingResult;
-import ca.tweetzy.auctionhouse.auction.ListingType;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
+import ca.tweetzy.auctionhouse.auction.ListingType;
 import ca.tweetzy.auctionhouse.auction.enums.AuctionSaleType;
 import ca.tweetzy.auctionhouse.guis.GUIAuctionHouse;
 import ca.tweetzy.auctionhouse.guis.GUIBundleCreation;
@@ -40,6 +40,7 @@ import ca.tweetzy.core.compatibility.XMaterial;
 import ca.tweetzy.core.utils.NumberUtils;
 import ca.tweetzy.core.utils.PlayerUtils;
 import ca.tweetzy.core.utils.TextUtils;
+import ca.tweetzy.flight.nbtapi.NBT;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -146,6 +147,7 @@ public final class CommandSell extends AbstractCommand {
 		boolean isStackPrice = false;
 		boolean partialBuy = false;
 		boolean serverAuction = false;
+		boolean isRequest = false;
 
 		List<String> timeSets = Arrays.asList(
 				"second",
@@ -318,6 +320,13 @@ public final class CommandSell extends AbstractCommand {
 		auctionedItem.setHighestBidder(player.getUniqueId());
 		auctionedItem.setOwnerName(player.getName());
 		auctionedItem.setHighestBidderName(player.getName());
+
+		// SCUFFED SHIT
+		if (!auctionedItem.isRequest())
+			NBT.modify(itemToSell, nbt -> {
+				nbt.setBoolean("AuctionDupeTracking", true);
+			});
+
 		auctionedItem.setItem(itemToSell);
 		auctionedItem.setCategory(MaterialCategorizer.getMaterialCategory(itemToSell));
 		auctionedItem.setExpiresAt(System.currentTimeMillis() + 1000L * allowedTime);
@@ -360,6 +369,10 @@ public final class CommandSell extends AbstractCommand {
 					return;
 				}
 
+				/*
+				========================== DUPE TESTING	==========================
+				 */
+
 				Bukkit.getScheduler().runTaskLaterAsynchronously(AuctionHouse.getInstance(), () -> {
 					if (auctionPlayer.getPlayer() == null || !auctionPlayer.getPlayer().isOnline()) {
 						return;
@@ -382,6 +395,11 @@ public final class CommandSell extends AbstractCommand {
 					});
 
 				}, Settings.INTERNAL_CREATE_DELAY.getInt());
+
+
+				/*
+				========================== DUPE TESTING	==========================
+				 */
 			}));
 		} else {
 //			Bukkit.getScheduler().runTaskLaterAsynchronously(AuctionHouse.getInstance(), () -> {

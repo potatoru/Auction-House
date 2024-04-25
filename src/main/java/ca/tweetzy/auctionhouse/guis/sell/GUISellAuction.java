@@ -21,9 +21,9 @@ package ca.tweetzy.auctionhouse.guis.sell;
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
 import ca.tweetzy.auctionhouse.api.auction.ListingResult;
-import ca.tweetzy.auctionhouse.auction.ListingType;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
+import ca.tweetzy.auctionhouse.auction.ListingType;
 import ca.tweetzy.auctionhouse.auction.enums.AuctionStackType;
 import ca.tweetzy.auctionhouse.guis.AbstractPlaceholderGui;
 import ca.tweetzy.auctionhouse.guis.GUIAuctionHouse;
@@ -174,6 +174,10 @@ public final class GUISellAuction extends AbstractPlaceholderGui {
 							}
 
 							double listingAmount = Double.parseDouble(string);
+							if (Double.isNaN(listingAmount)) {
+								AuctionHouse.getInstance().getLocale().getMessage("general.notanumber").processPlaceholder("value", string).sendPrefixedMessage(player);
+								return false;
+							}
 
 							if (listingAmount < Settings.MIN_AUCTION_PRICE.getDouble())
 								listingAmount = Settings.MIN_AUCTION_PRICE.getDouble();
@@ -223,6 +227,10 @@ public final class GUISellAuction extends AbstractPlaceholderGui {
 					}
 
 					double listingAmount = Double.parseDouble(string);
+					if (Double.isNaN(listingAmount)) {
+						AuctionHouse.getInstance().getLocale().getMessage("general.notanumber").processPlaceholder("value", string).sendPrefixedMessage(player);
+						return false;
+					}
 
 					if (Settings.ALLOW_USAGE_OF_BUY_NOW_SYSTEM.getBoolean() && GUISellAuction.this.allowBuyNow)
 						if (Settings.BASE_PRICE_MUST_BE_HIGHER_THAN_BID_START.getBoolean() && listingAmount >= GUISellAuction.this.binPrice) {
@@ -280,6 +288,10 @@ public final class GUISellAuction extends AbstractPlaceholderGui {
 					}
 
 					double listingAmount = Double.parseDouble(string);
+					if (Double.isNaN(listingAmount)) {
+						AuctionHouse.getInstance().getLocale().getMessage("general.notanumber").processPlaceholder("value", string).sendPrefixedMessage(player);
+						return false;
+					}
 
 					if (listingAmount < Settings.MIN_AUCTION_INCREMENT_PRICE.getDouble())
 						listingAmount = Settings.MIN_AUCTION_INCREMENT_PRICE.getDouble();

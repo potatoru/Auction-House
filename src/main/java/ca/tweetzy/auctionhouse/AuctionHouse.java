@@ -229,7 +229,9 @@ public class AuctionHouse extends TweetyPlugin {
 				new _16_StatisticVersionTwoMigration(),
 				new _17_PaymentsMigration(),
 				new _18_PaymentsItemMigration(),
-				new _19_ServerAuctionMigration()
+				new _19_ServerAuctionMigration(),
+				new _20_AuctionRequestsMigration(),
+				new _21_RequestsDynAmtMigration()
 		);
 
 		dataMigrationManager.runMigrations();
@@ -290,7 +292,9 @@ public class AuctionHouse extends TweetyPlugin {
 				new CommandMinPrice(),
 				new CommandStats(),
 				new CommandPayments(),
-				new CommandBids()
+				new CommandBids(),
+				new CommandConfirm(),
+				new CommandRequest()
 		);
 
 		// Placeholder API
@@ -307,7 +311,7 @@ public class AuctionHouse extends TweetyPlugin {
 		}
 
 		// update check
-		if (Settings.UPDATE_CHECKER.getBoolean())
+		if (Settings.UPDATE_CHECKER.getBoolean() && ServerProject.getServerVersion() != ServerProject.UNKNOWN)
 			getServer().getScheduler().runTaskLaterAsynchronously(this, () -> this.status = new UpdateChecker(this, 60325, getConsole()).check().getStatus(), 1L);
 
 		// metrics

@@ -20,14 +20,12 @@ package ca.tweetzy.auctionhouse.guis;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
-import ca.tweetzy.auctionhouse.auction.ListingType;
-import ca.tweetzy.auctionhouse.events.AuctionBidEvent;
-import ca.tweetzy.auctionhouse.hooks.FloodGateHook;
-import ca.tweetzy.auctionhouse.hooks.PlaceholderAPIHook;
 import ca.tweetzy.auctionhouse.auction.AuctionPayment;
 import ca.tweetzy.auctionhouse.auction.AuctionPlayer;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
+import ca.tweetzy.auctionhouse.auction.ListingType;
 import ca.tweetzy.auctionhouse.auction.enums.*;
+import ca.tweetzy.auctionhouse.events.AuctionBidEvent;
 import ca.tweetzy.auctionhouse.guis.admin.GUIAdminItem;
 import ca.tweetzy.auctionhouse.guis.confirmation.GUIConfirmBid;
 import ca.tweetzy.auctionhouse.guis.confirmation.GUIConfirmPurchase;
@@ -39,6 +37,8 @@ import ca.tweetzy.auctionhouse.guis.transaction.GUITransactionType;
 import ca.tweetzy.auctionhouse.helpers.BundleUtil;
 import ca.tweetzy.auctionhouse.helpers.ConfigurationItemHelper;
 import ca.tweetzy.auctionhouse.helpers.input.TitleInput;
+import ca.tweetzy.auctionhouse.hooks.FloodGateHook;
+import ca.tweetzy.auctionhouse.hooks.PlaceholderAPIHook;
 import ca.tweetzy.auctionhouse.settings.Settings;
 import ca.tweetzy.core.compatibility.ServerVersion;
 import ca.tweetzy.core.compatibility.XSound;
@@ -74,6 +74,8 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 	private BukkitTask task;
 	private String searchPhrase = "";
 
+	private final List<Integer> FILL_SLOTS = Settings.GUI_AUCTION_HOUSE_FILL_SLOTS.getIntegerList();
+
 	public GUIAuctionHouse(AuctionPlayer auctionPlayer) {
 		super(auctionPlayer);
 		this.auctionPlayer = auctionPlayer;
@@ -82,10 +84,10 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 			return;
 
 		setTitle(TextUtils.formatText(Settings.GUI_AUCTION_HOUSE_TITLE.getString()));
-		setRows(6);
+		setRows(Settings.GUI_AUCTION_HOUSE_ROWS.getInt());
 		setAcceptsItems(false);
 		setAllowShiftClick(false);
-		setNavigateSound(XSound.matchXSound(Settings.SOUNDS_NAVIGATE_GUI_PAGES.getString()).orElse(XSound.ENTITY_BAT_TAKEOFF));
+		setNavigateSound(XSound.matchXSound(Settings.SOUNDS_NAVIGATE_GUI_PAGES.getString()).orElse(XSound.ENTITY_BAT_TAKEOFF).parseSound());
 		draw();
 
 		setOnOpen(open -> {
@@ -117,7 +119,7 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 		if (inventory != null)
 			inventory.clear();
 
-		setActionForRange(0, 44, null);
+		this.FILL_SLOTS.forEach(slot -> setAction(slot, null));
 		cellItems.clear();
 		update();
 	}
@@ -173,18 +175,18 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 
 				if (this.auctionPlayer.getAuctionSortType() == AuctionSortType.PRICE) {
 					this.items = this.items.stream().sorted(Comparator.comparingDouble(AuctionedItem::getCurrentPrice).reversed()).collect(Collectors.toList());
-				}
-
-				if (this.auctionPlayer.getAuctionSortType() == AuctionSortType.RECENT) {
+				} else if (this.auctionPlayer.getAuctionSortType() == AuctionSortType.RECENT) {
 					this.items = this.items.stream().sorted(Comparator.comparingLong(AuctionedItem::getExpiresAt).reversed()).collect(Collectors.toList());
+				} else if (this.auctionPlayer.getAuctionSortType() == AuctionSortType.OLDEST) {
+					this.items = this.items.stream().sorted(Comparator.comparingLong(AuctionedItem::getExpiresAt)).collect(Collectors.toList());
 				}
 			}
 
 			this.items = this.items.stream().sorted(Comparator.comparing(AuctionedItem::isInfinite).reversed()).collect(Collectors.toList());
 
-			return this.items.stream().skip((page - 1) * 45L).limit(45L).collect(Collectors.toList());
+			return this.items.stream().skip((page - 1) * (long) this.FILL_SLOTS.size()).limit(this.FILL_SLOTS.size()).collect(Collectors.toList());
 		}).asyncLast((data) -> {
-			pages = (int) Math.max(1, Math.ceil(this.items.size() / (double) 45L));
+			pages = (int) Math.max(1, Math.ceil(this.items.size() / (double) this.FILL_SLOTS.size()));
 			// todo possibly re-add variable btns draw
 			drawPaginationButtons();
 			placeItems(data);
@@ -195,17 +197,19 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 		// option for only whitelisted shit
 		if (Settings.FILTER_ONLY_USES_WHITELIST.getBoolean()) {
 			if (!Settings.FILTER_WHITELIST_USES_DURABILITY.getBoolean())
-				return AuctionHouse.getInstance().getFilterManager().getFilterWhitelist(category).stream().anyMatch(item -> item.isSimilar(auctionItem.getItem()));
+				return AuctionHouse.getInstance().getFilterManager().getFilterWhitelist(category).stream().anyMatch(item -> item != null && item.isSimilar(auctionItem.getItem()));
 			else
-				return AuctionHouse.getInstance().getFilterManager().getFilterWhitelist(category).stream().anyMatch(item -> item.getType() == auctionItem.getItem().getType() && item.getDurability() == auctionItem.getItem().getDurability());
+				return AuctionHouse.getInstance().getFilterManager().getFilterWhitelist(category).stream().anyMatch(item -> item != null && item.getType() == auctionItem.getItem().getType() && item.getDurability() == auctionItem.getItem().getDurability());
 		}
 
 		return auctionItem.getCategory() == category ||
-				AuctionHouse.getInstance().getFilterManager().getFilterWhitelist(category).stream().anyMatch(item -> item.isSimilar(auctionItem.getItem()));
+				AuctionHouse.getInstance().getFilterManager().getFilterWhitelist(category).stream().anyMatch(item -> item != null && item.isSimilar(auctionItem.getItem()));
 	}
 
 	private boolean checkSearchCriteria(String phrase, AuctionedItem item) {
 		ItemStack stack = item.getItem();
+		if (stack == null) return false;
+
 		return AuctionAPI.getInstance().matchSearch(phrase, AuctionAPI.getInstance().getItemName(stack)) ||
 				AuctionAPI.getInstance().matchSearch(phrase, item.getCategory().getTranslatedType()) ||
 				AuctionAPI.getInstance().matchSearch(phrase, stack.getType().name()) ||
@@ -455,51 +459,67 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 	private void placeItems(List<AuctionedItem> data) {
 
 		if (Settings.AUTO_REFRESH_DOES_SLOT_CLEAR.getBoolean())
-			setItems(0, 44, getDefaultItem());
+			this.FILL_SLOTS.forEach(slot -> setItem(slot, getDefaultItem()));
 
-		int slot = 0;
-		for (AuctionedItem auctionItem : data) {
-			setButton(slot++, auctionItem.getDisplayStack(AuctionStackType.MAIN_AUCTION_HOUSE), e -> {
-				// Non Type specific actions
-				if (e.clickType == ClickType.valueOf(Settings.CLICKS_INSPECT_CONTAINER.getString().toUpperCase())) {
-					handleContainerInspect(e);
-					return;
-				}
+		for (int i = 0; i < this.rows * 9; i++) {
+			if (this.FILL_SLOTS.contains(i) && this.FILL_SLOTS.indexOf(i) < data.size()) {
+				final AuctionedItem auctionItem = data.get(this.FILL_SLOTS.indexOf(i));
 
-				if (e.clickType == ClickType.valueOf(Settings.CLICKS_REMOVE_ITEM.getString().toUpperCase())) {
-					handleItemRemove(auctionItem, e);
-					return;
-				}
-
-				// Non Biddable Items
-				if (!auctionItem.isBidItem()) {
-					if (e.clickType == ClickType.valueOf(Settings.CLICKS_NON_BID_ITEM_PURCHASE.getString().toUpperCase())) {
-						handleNonBidItem(auctionItem, e, false);
+				setButton(i, auctionItem.isRequest() ? auctionItem.getDisplayRequestStack(AuctionStackType.MAIN_AUCTION_HOUSE) : auctionItem.getDisplayStack(AuctionStackType.MAIN_AUCTION_HOUSE), e -> {
+					// Non Type specific actions
+					if (e.clickType == ClickType.valueOf(Settings.CLICKS_INSPECT_CONTAINER.getString().toUpperCase())) {
+						handleContainerInspect(e);
 						return;
 					}
 
-					if (e.clickType == ClickType.valueOf(Settings.CLICKS_NON_BID_ITEM_QTY_PURCHASE.getString().toUpperCase())) {
-						if (!auctionItem.isAllowPartialBuy()) {
-							AuctionHouse.getInstance().getLocale().getMessage("general.qtybuydisabled").processPlaceholder("item_owner", auctionItem.getOwnerName()).sendPrefixedMessage(e.player);
+					if (e.clickType == ClickType.valueOf(Settings.CLICKS_REMOVE_ITEM.getString().toUpperCase())) {
+						handleItemRemove(auctionItem, e);
+						return;
+					}
+
+					// Non Biddable Items
+					if (!auctionItem.isBidItem()) {
+						if (e.clickType == ClickType.valueOf(Settings.CLICKS_NON_BID_ITEM_PURCHASE.getString().toUpperCase())) {
+							// special case for request
+							if (auctionItem.isRequest()) {
+								if (e.player.getUniqueId().equals(auctionItem.getOwner()) && !Settings.OWNER_CAN_FULFILL_OWN_REQUEST.getBoolean()) {
+									AuctionHouse.getInstance().getLocale().getMessage("general.cantbuyown").sendPrefixedMessage(e.player);
+									return;
+								}
+
+								cleanup();
+								e.manager.showGUI(e.player, new GUIConfirmPurchase(this.auctionPlayer, auctionItem, false));
+								AuctionHouse.getInstance().getTransactionManager().addPrePurchase(e.player, auctionItem.getId());
+								return;
+							}
+
+							handleNonBidItem(auctionItem, e, false);
 							return;
 						}
 
-						handleNonBidItem(auctionItem, e, true);
+						if (e.clickType == ClickType.valueOf(Settings.CLICKS_NON_BID_ITEM_QTY_PURCHASE.getString().toUpperCase())) {
+							if (!auctionItem.isAllowPartialBuy()) {
+								AuctionHouse.getInstance().getLocale().getMessage("general.qtybuydisabled").processPlaceholder("item_owner", auctionItem.getOwnerName()).sendPrefixedMessage(e.player);
+								return;
+							}
+
+							handleNonBidItem(auctionItem, e, true);
+							return;
+						}
 						return;
 					}
-					return;
-				}
 
-				// Biddable Items
-				if (e.clickType == ClickType.valueOf(Settings.CLICKS_BID_ITEM_PLACE_BID.getString().toUpperCase())) {
-					handleBidItem(auctionItem, e, false);
-					return;
-				}
+					// Biddable Items
+					if (e.clickType == ClickType.valueOf(Settings.CLICKS_BID_ITEM_PLACE_BID.getString().toUpperCase())) {
+						handleBidItem(auctionItem, e, false);
+						return;
+					}
 
-				if (e.clickType == ClickType.valueOf(Settings.CLICKS_BID_ITEM_BUY_NOW.getString().toUpperCase())) {
-					handleBidItem(auctionItem, e, true);
-				}
-			});
+					if (e.clickType == ClickType.valueOf(Settings.CLICKS_BID_ITEM_BUY_NOW.getString().toUpperCase())) {
+						handleBidItem(auctionItem, e, true);
+					}
+				});
+			}
 		}
 	}
 
@@ -606,7 +626,7 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 		}
 
 		if (Settings.GUI_REFRESH_BTN_ENABLED.getBoolean()) {
-			setButton(Settings.GUI_REFRESH_BTN_SLOT.getInt(), getRefreshButtonItem(), e -> {
+			setButton(Settings.GUI_REFRESH_BTN_SLOT.getInt(), getRefreshButtonItem(), ClickType.LEFT, e -> {
 				if (Settings.USE_REFRESH_COOL_DOWN.getBoolean()) {
 					if (AuctionHouse.getInstance().getAuctionPlayerManager().getCooldowns().containsKey(this.auctionPlayer.getPlayer().getUniqueId())) {
 						if (AuctionHouse.getInstance().getAuctionPlayerManager().getCooldowns().get(this.auctionPlayer.getPlayer().getUniqueId()) > System.currentTimeMillis()) {
@@ -746,7 +766,11 @@ public class GUIAuctionHouse extends AbstractPlaceholderGui {
 	====================== AUTO REFRESH ======================
 	 */
 	private void makeMess() {
-		task = Bukkit.getServer().getScheduler().runTaskTimerAsynchronously(AuctionHouse.getInstance(), this::drawItems, 0L, (long) 20 * Settings.TICK_UPDATE_GUI_TIME.getInt());
+		if (Settings.AUTO_REFRESH_AUCTION_PAGE_SYNC.getBoolean()) {
+			task = Bukkit.getServer().getScheduler().runTaskTimer(AuctionHouse.getInstance(), this::drawItems, 0L, (long) 20 * Settings.TICK_UPDATE_GUI_TIME.getInt());
+		} else {
+			task = Bukkit.getServer().getScheduler().runTaskTimerAsynchronously(AuctionHouse.getInstance(), this::drawItems, 0L, (long) 20 * Settings.TICK_UPDATE_GUI_TIME.getInt());
+		}
 	}
 
 	private void cleanup() {

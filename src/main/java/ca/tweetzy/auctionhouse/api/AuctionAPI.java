@@ -338,7 +338,8 @@ public class AuctionAPI {
 	}
 
 	public boolean matchSearch(String pattern, String sentence) {
-		Pattern patt = Pattern.compile(ChatColor.stripColor(pattern), Pattern.CASE_INSENSITIVE);
+		String escapedPattern = Pattern.quote(ChatColor.stripColor(pattern));
+		Pattern patt = Pattern.compile(escapedPattern, Pattern.CASE_INSENSITIVE);
 		Matcher matcher = patt.matcher(sentence);
 		return matcher.find();
 	}
@@ -385,7 +386,9 @@ public class AuctionAPI {
 	 * @return the formatted number string
 	 */
 	public String formatNumber(double number) {
-		String formatted = String.format(Settings.CURRENCY_FORMAT.getString(), number);
+		String formatted = String.format(Settings.CURRENCY_FORMAT.getString(), number);//%,.2f
+		if (Settings.USE_SPACE_SEPARATOR_FOR_NUMBER.getBoolean())
+			formatted = formatted.replace(",", " ");
 
 		// do the zero drop here
 		// this is a bit scuffed, I gotta improve this
@@ -414,6 +417,35 @@ public class AuctionAPI {
 		int index = string.lastIndexOf(substring);
 		if (index == -1) return string;
 		return string.substring(0, index) + replacement + string.substring(index + substring.length());
+	}
+
+	public static String replaceAllExceptLast(String input, char target, char replacement) {
+		int lastIndex = input.lastIndexOf(target);
+
+		if (lastIndex == -1) {
+			// If the target character is not found, return the original string
+			return input;
+		}
+
+		StringBuilder result = new StringBuilder();
+		boolean foundLast = false;
+
+		for (int i = 0; i < input.length(); i++) {
+			char currentChar = input.charAt(i);
+
+			if (currentChar == target && i == lastIndex && !foundLast) {
+				// Keep the last instance unchanged
+				result.append(currentChar);
+				foundLast = true;
+			} else if (currentChar == target) {
+				// Replace all instances except the last one
+				result.append(replacement);
+			} else {
+				result.append(currentChar);
+			}
+		}
+
+		return result.toString();
 	}
 
 	/**
