@@ -16,17 +16,14 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-package ca.tweetzy.auctionhouse.helpers;
+package ca.tweetzy.auctionhouse.helpers.discord;
 
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
-import ca.tweetzy.auctionhouse.api.DiscordWebhook;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
+import ca.tweetzy.auctionhouse.helpers.AuctionCreator;
 import ca.tweetzy.auctionhouse.settings.Settings;
-import ca.tweetzy.flight.utils.ItemUtil;
 import lombok.NonNull;
 import lombok.SneakyThrows;
-import org.bukkit.ChatColor;
-import org.bukkit.OfflinePlayer;
 
 import java.awt.*;
 
@@ -59,7 +56,7 @@ public final class DiscordMessageCreator {
 		return new DiscordMessageCreator(webhook, messageType);
 	}
 
-	public DiscordMessageCreator seller(@NonNull final OfflinePlayer seller) {
+	public DiscordMessageCreator seller(final OfflinePlayer seller) {
 		this.seller = seller;
 		return this;
 	}
@@ -88,7 +85,7 @@ public final class DiscordMessageCreator {
 		final DiscordWebhook hook = generateBaseHook();
 		DiscordWebhook.EmbedObject embed = generateBaseEmbed();
 
-		embed.addField(Settings.DISCORD_MSG_FIELD_SELLER_NAME.getString(), Settings.DISCORD_MSG_FIELD_SELLER_VALUE.getString().replace("%seller%", this.seller.getName()), Settings.DISCORD_MSG_FIELD_SELLER_INLINE.getBoolean());
+		embed.addField(Settings.DISCORD_MSG_FIELD_SELLER_NAME.getString(), Settings.DISCORD_MSG_FIELD_SELLER_VALUE.getString().replace("%seller%", this.listing.isServerItem() ? AuctionCreator.SERVER_LISTING_NAME : this.seller.getName()), Settings.DISCORD_MSG_FIELD_SELLER_INLINE.getBoolean());
 		embed.addField(Settings.DISCORD_MSG_FIELD_ITEM_NAME.getString(), Settings.DISCORD_MSG_FIELD_ITEM_VALUE.getString().replace("%item_name%", "x" + this.listing.getItem().getAmount() + " " + ChatColor.stripColor(AuctionAPI.getInstance().getItemName(this.listing.getItem()))), Settings.DISCORD_MSG_FIELD_SELLER_INLINE.getBoolean());
 
 		switch (this.messageType) {
