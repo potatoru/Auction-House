@@ -20,13 +20,14 @@ package ca.tweetzy.auctionhouse.tasks;
 
 import ca.tweetzy.auctionhouse.AuctionHouse;
 import ca.tweetzy.auctionhouse.api.AuctionAPI;
-import ca.tweetzy.auctionhouse.events.AuctionEndEvent;
 import ca.tweetzy.auctionhouse.auction.AuctionedItem;
 import ca.tweetzy.auctionhouse.auction.enums.AuctionSaleType;
+import ca.tweetzy.auctionhouse.events.AuctionEndEvent;
 import ca.tweetzy.auctionhouse.settings.Settings;
 import ca.tweetzy.core.hooks.EconomyManager;
 import ca.tweetzy.core.utils.PlayerUtils;
 import ca.tweetzy.core.utils.TextUtils;
+import ca.tweetzy.flight.nbtapi.NBT;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.ItemStack;
@@ -119,7 +120,7 @@ public class TickAuctionsTask extends BukkitRunnable {
 
 				// the owner is the highest bidder, so just expire
 				if (auctionItem.getHighestBidder().equals(auctionItem.getOwner())) {
-					if (auctionItem.isServerItem())
+					if (auctionItem.isServerItem() || auctionItem.isRequest())
 						instance.getAuctionItemManager().sendToGarbage(auctionItem);
 					else
 						auctionItem.setExpired(true);
@@ -174,8 +175,14 @@ public class TickAuctionsTask extends BukkitRunnable {
 					if (!Settings.BIDDING_TAKES_MONEY.getBoolean())
 						instance.getLocale().getMessage("pricing.moneyremove").processPlaceholder("player_balance", AuctionAPI.getInstance().formatNumber(EconomyManager.getBalance(auctionWinner.getPlayer()))).processPlaceholder("price", AuctionAPI.getInstance().formatNumber(Settings.TAX_CHARGE_SALES_TAX_TO_BUYER.getBoolean() ? finalPrice + tax : finalPrice)).sendPrefixedMessage(auctionWinner.getPlayer());
 
+					// remove the dupe tracking
+					NBT.modify(itemStack, nbt -> {
+						nbt.removeKey("AuctionDupeTracking");
+					});
+
 					// handle full inventory
 					if (auctionWinner.getPlayer().getInventory().firstEmpty() == -1) {
+
 						if (Settings.ALLOW_PURCHASE_IF_INVENTORY_FULL.getBoolean()) {
 							if (Settings.SYNCHRONIZE_ITEM_ADD.getBoolean())
 								AuctionHouse.newChain().sync(() -> PlayerUtils.giveItem(auctionWinner.getPlayer(), itemStack)).execute();

@@ -44,7 +44,10 @@ public class LocaleSettings {
 		languageNodes.put("general.locked", "&cThe Auction House is currently locked!");
 		languageNodes.put("general.playernotfound", "&cCould not find the player &4%player%");
 		languageNodes.put("general.notenoughmoney", "&cYou do not have enough money!");
+		languageNodes.put("general.requesterhasnomoney", "&cRequester does not have enough money!");
+		languageNodes.put("general.notenoughitems", "&cYou do not have enough of that item!");
 		languageNodes.put("general.cannotbezero", "&cPlease provide a number greater than zero");
+		languageNodes.put("general.highrequestcount", "&cYou cannot request that many items!");
 		languageNodes.put("general.cantbidonown", "&cYou cannot bid on your own item!");
 		languageNodes.put("general.alreadyhighestbidder", "&cYou are already the highest bidder!");
 		languageNodes.put("general.cantbuyown", "&cYou cannot buy your own item!");
@@ -58,6 +61,7 @@ public class LocaleSettings {
 		languageNodes.put("general.min item price air", "&cSorry, but you cannot add a price to air");
 		languageNodes.put("general.blocked", "&cSorry, you are not allowed to sell &e%item%");
 		languageNodes.put("general.sellinglimit", "&cYou cannot sell more items, please remove/sell current active items");
+		languageNodes.put("general.requestlimit", "&cYou cannot request more items, please remove/sell current active items");
 		languageNodes.put("general.collectionbinlimit", "&cCollection is full, please claim your items first.");
 		languageNodes.put("general.bundlelistlimit", "&cYou cannot list anymore bundled items!");
 		languageNodes.put("general.noroom", "&cPlease clear room in your inventory to purchase that item.");
@@ -78,8 +82,13 @@ public class LocaleSettings {
 		languageNodes.put("general.wait_to_list", "&cPlease wait &4%time%&cs before listing another item");
 		languageNodes.put("general.please_enter_at_least_one_number", "&cPlease enter at least 1 valid number!");
 		languageNodes.put("general.cannot cancel item with bid", "&cYou cannot cancel a listing that already has a bid!");
-		languageNodes.put("general.mcmmo_ability_active", "&cCannot list item when mcMMO ability is active!");
 		languageNodes.put("general.cannot list damaged item", "&cCannot list a damaged item!");
+
+		languageNodes.put("general.nothing to confirm", "&cYou have nothing to confirm");
+		languageNodes.put("general.confirm time limit reached", "&cYou didn't confirm in time, request it again.");
+		languageNodes.put("general.confirmed cancellation", "&aConfirmed, all your items will be sent to colleciton.");
+
+
 		languageNodes.put("general.cannot list repaired item", "&cCannot list a repaired item!");
 		languageNodes.put("general.marked chest", "&aYou marked that chest as an Auction chest");
 		languageNodes.put("general.unmarked chest", "&cYou unmarked that chest as an Auction chest");
@@ -110,6 +119,9 @@ public class LocaleSettings {
 		languageNodes.put("pricing.minitemprice", "&cThe minimum price for this item must be &a$%price%");
 
 
+		languageNodes.put("titles.end all confirm.title", "&eConfirm End All");
+		languageNodes.put("titles.end all confirm.subtitle", "&bType &f/&eah confirm &bto cancel all auctions");
+
 		languageNodes.put("titles.buy now price.title", "&eBuy Out Price");
 		languageNodes.put("titles.buy now price.subtitle", "&fEnter new buyout price in chat");
 
@@ -128,6 +140,12 @@ public class LocaleSettings {
 
 		languageNodes.put("titles.enter deletion range.title", "&eDeletion Range");
 		languageNodes.put("titles.enter deletion range.subtitle", "&fEnter deletion range in chat");
+
+		languageNodes.put("titles.enter request amount.title", "&eRequest Amount");
+		languageNodes.put("titles.enter request amount.subtitle", "&fEnter requested amount in chat");
+
+		languageNodes.put("titles.enter request price.title", "&eRequest Price");
+		languageNodes.put("titles.enter request price.subtitle", "&fEnter how much you'll pay in chat");
 
 		languageNodes.put("transaction.sale_type.bid_won", "Won Auction");
 		languageNodes.put("transaction.sale_type.immediate_buy", "Bought Immediately");
@@ -167,6 +185,7 @@ public class LocaleSettings {
 		languageNodes.put("auction_filter.categories.search", "Search");
 		languageNodes.put("auction_filter.sort_order.recent", "Recent");
 		languageNodes.put("auction_filter.sort_order.price", "Price");
+		languageNodes.put("auction_filter.sort_order.oldest", "Oldest");
 
 		languageNodes.put("transaction_filter.buy_type.sold", "Sold");
 		languageNodes.put("transaction_filter.buy_type.bought", "Bought");
@@ -182,6 +201,7 @@ public class LocaleSettings {
 
 		languageNodes.put("auction.listed.withbid", "&eListed &fx%amount% &6%item% &e&lBuy Now&f: &a%base_price% &e&lStarting&f: &a%start_price% &e&lIncrement&f: &a%increment_price%");
 		languageNodes.put("auction.listed.nobid", "&eListed &fx%amount% &6%item% &efor &a%base_price%");
+		languageNodes.put("auction.listed.request", "&eRequested &fx%amount% &6%item%&f(s) &efor &a%base_price%");
 		languageNodes.put("auction.broadcast.withbid", "&e%player% listed &fx%amount% &6%item% &e&lBuy Now&f: &a%base_price% &e&lStarting&f: &a%start_price% &e&lIncrement&f: &a%increment_price%");
 		languageNodes.put("auction.broadcast.nobid", "&e%player% listed &fx%amount% &6%item% &efor &a%base_price%");
 		languageNodes.put("auction.broadcast.sold", "&e&fx%amount% &6%item% &esold to %player% for &a%price%");
@@ -220,6 +240,7 @@ public class LocaleSettings {
 		languageNodes.put("commands.syntax.active", "active");
 		languageNodes.put("commands.syntax.auctionhouse", "/ah");
 		languageNodes.put("commands.syntax.convert", "convert");
+		languageNodes.put("commands.syntax.confirm", "confirm");
 		languageNodes.put("commands.syntax.expired", "expired");
 		languageNodes.put("commands.syntax.reload", "reload");
 		languageNodes.put("commands.syntax.search", "search <keywords>");
@@ -234,9 +255,11 @@ public class LocaleSettings {
 		languageNodes.put("commands.syntax.markchest", "markchest");
 		languageNodes.put("commands.syntax.min price", "minprices [add] [price]");
 		languageNodes.put("commands.syntax.stats", "stats [player]");
+		languageNodes.put("commands.syntax.request", "request <price> [-single]");
 
 		languageNodes.put("commands.description.active", "View all your auction listings");
 		languageNodes.put("commands.description.auctionhouse", "Main command for the plugin, it opens the auction window.");
+		languageNodes.put("commands.description.confirm", "Used to confirm an action");
 		languageNodes.put("commands.description.convert", "Used to make an attempted conversion from < 2.0.0+");
 		languageNodes.put("commands.description.expired", "View all your expired/cancelled listings");
 		languageNodes.put("commands.description.reload", "Reload plugin files");
@@ -252,6 +275,7 @@ public class LocaleSettings {
 		languageNodes.put("commands.description.markchest", "Toggles whether a chest is an auction chest");
 		languageNodes.put("commands.description.min price", "Adds a minimum sell price to an item");
 		languageNodes.put("commands.description.stats", "View yours or another players stats");
+		languageNodes.put("commands.description.request", "Makes request for item your holding");
 	}
 
 	public static void send(CommandSender sender, String msg) {
